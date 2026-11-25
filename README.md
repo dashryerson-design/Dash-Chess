@@ -10,7 +10,24 @@ Everything is free and self-hostable. No paid services, APIs or real-money purch
 
 ---
 
-## Quick start
+## Play in your browser (free, serverless)
+
+**https://dashryerson-design.github.io/Dash-Chess/**
+
+The hosted version needs no server at all:
+
+- **The whole game server runs inside your browser tab.** It uses SQLite compiled to WebAssembly, saved to IndexedDB, with Stockfish running in Web Workers. Bots, move ratings, progression, the shop, puzzles and training all work offline-style on your device.
+- **Online play connects players directly to each other over WebRTC.** Players meet in a lobby; signalling goes over free public Nostr relays via [trystero](https://github.com/dmotz/trystero). For each online game, one player's browser hosts the authoritative game and the other connects to it. Each player records the finished game and computes their own rewards.
+- **Deployment:** GitHub Pages builds and publishes it automatically on every push to `main` (`.github/workflows/pages.yml`). Run `npm run build:web` to build it yourself, or `npm run dev:web` to work on it.
+
+Trade-offs of having no server:
+
+- **Progress lives in your browser.** Clearing site data deletes your profile, and it doesn't sync between devices.
+- **Online results are not cheat-proof.** Rewards and ratings are computed by the players' own browsers, so a modified client can lie. Use the self-hosted server mode below for trusted competitive play.
+- **Leaderboards show players online right now.** There is no central database of everyone.
+- **Some networks can't connect.** Players behind very strict networks (symmetric NAT, some corporate firewalls) may be unable to connect peer-to-peer, because there is no TURN relay.
+
+## Quick start (self-hosted server mode)
 
 Requirements: **Node.js 20+** (tested on 22). Nothing else: the database (SQLite) and the chess engine (Stockfish 18 WASM) are bundled npm packages.
 
