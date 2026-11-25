@@ -6,3 +6,4 @@ client/public/engine
 test-results
 *.log
 .env
+client/public/data

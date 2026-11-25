@@ -335,7 +335,7 @@ export class ChallengeService {
   byCode = new Map<string, string>();
 
   constructor() {
-    setInterval(() => this.expire(), 30_000).unref();
+    (setInterval(() => this.expire(), 30_000) as any).unref?.();
   }
 
   create(from: string, to: string | null, settings: MatchSettings): Challenge {

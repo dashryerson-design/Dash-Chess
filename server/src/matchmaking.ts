@@ -33,7 +33,7 @@ export class Matchmaker {
 
   constructor(private db: DB, private games: GameManager) {
     this.timer = setInterval(() => this.tick(), 1000);
-    this.timer.unref();
+    (this.timer as any).unref?.();
   }
 
   stop() {

@@ -16,9 +16,28 @@ export default function Auth() {
   const [busy, setBusy] = useState(false);
   const load = useSession((s) => s.load);
 
+  const P2P = import.meta.env.VITE_P2P === '1';
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (P2P) {
+      // serverless build: the profile lives in this browser, so a username is all that is needed
+      setBusy(true);
+      try {
+        try {
+          await api.post('/api/auth/register', { username: username.trim(), password: 'local-profile' });
+        } catch (err) {
+          if ((err as { status?: number }).status !== 409) throw err;
+          await api.post('/api/auth/login', { username: username.trim(), password: 'local-profile' });
+        }
+        await load();
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (mode === 'register' && password !== confirm) return setError('Passwords do not match.');
     setBusy(true);
     try {
@@ -73,11 +92,18 @@ export default function Auth() {
             <div className="brand-name" style={{ fontSize: '1.4rem' }}>DC CHESS</div>
           </div>
           <div>
-            <h2 className="display" style={{ margin: 0, fontSize: '1.6rem' }}>{mode === 'register' ? 'Create your account' : 'Welcome back'}</h2>
+            <h2 className="display" style={{ margin: 0, fontSize: '1.6rem' }}>{P2P ? 'Create your account' : mode === 'register' ? 'Create your account' : 'Welcome back'}</h2>
             <p className="muted small" style={{ margin: '6px 0 0' }}>
               {mode === 'register' ? 'Free forever. Your progress is saved to your account.' : 'Log in to continue your climb.'}
             </p>
           </div>
+          {P2P ? (
+            <div className="field">
+              <label htmlFor="u">Choose a username</label>
+              <input id="u" className="input" autoComplete="nickname" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="3-16 letters, numbers or _" required minLength={3} maxLength={16} />
+            </div>
+          ) : (
+            <>
           <div className="btn-group" style={{ alignSelf: 'flex-start' }}>
             <button type="button" className={mode === 'register' ? 'on' : ''} onClick={() => setMode('register')}>Sign up</button>
             <button type="button" className={mode === 'login' ? 'on' : ''} onClick={() => setMode('login')}>Log in</button>
@@ -96,12 +122,16 @@ export default function Auth() {
               <input id="c" className="input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
             </div>
           )}
+            </>
+          )}
           {error && <div className="error-text" role="alert">{error}</div>}
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>
-            {busy ? <span className="spinner" style={{ width: 18, height: 18 }} /> : mode === 'register' ? 'Create account' : 'Log in'}
+            {busy ? <span className="spinner" style={{ width: 18, height: 18 }} /> : P2P ? 'Play now' : mode === 'register' ? 'Create account' : 'Log in'}
           </button>
           <p className="tiny muted" style={{ textAlign: 'center' }}>
-            No email required. Passwords are hashed with scrypt and never stored in plain text.
+            {P2P
+              ? 'No account or server needed. Your profile and progress are saved in this browser. Online games connect you directly to other players.'
+              : 'No email required. Passwords are hashed with scrypt and never stored in plain text.'}
           </p>
         </form>
       </div>

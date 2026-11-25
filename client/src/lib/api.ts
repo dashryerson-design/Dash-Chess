@@ -5,7 +5,19 @@ export class ApiError extends Error {
   }
 }
 
+type Transport = (method: string, url: string, body?: unknown) => Promise<{ status: number; json: any }>;
+let transport: Transport | null = null;
+/** In the serverless (P2P) build, API calls are served by the in-page server. */
+export function setApiTransport(t: Transport) {
+  transport = t;
+}
+
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  if (transport) {
+    const r = await transport(method, url, body);
+    if (r.status >= 400) throw new ApiError(r.json?.error ?? `Request failed (${r.status})`, r.status);
+    return r.json as T;
+  }
   const res = await fetch(url, {
     method,
     credentials: 'same-origin',

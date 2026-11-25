@@ -27,7 +27,7 @@ class ClientEngine {
     if (this.ready) return this.ready;
     this.ready = new Promise<void>((resolve, reject) => {
       try {
-        this.worker = new Worker('/engine/stockfish-18-lite-single.js');
+        this.worker = new Worker(`${import.meta.env.BASE_URL}engine/stockfish-18-lite-single.js`);
       } catch (e) {
         this.failed = true;
         reject(e);

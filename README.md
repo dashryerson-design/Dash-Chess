@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="#quick-start"><img src="docs/assets/play-button.svg" alt="PLAY DC CHESS" width="100%"></a>
+  <a href="https://dashryerson-design.github.io/Dash-Chess/"><img src="docs/assets/play-button.svg" alt="PLAY DC CHESS" width="100%"></a>
 </p>
 
 # DC Chess (Dash Chess)

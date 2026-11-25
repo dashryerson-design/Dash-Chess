@@ -386,9 +386,9 @@ export function createRealtime(http: HttpServer, db: DB, opts: { corsOrigin?: st
         userSockets.delete(uid);
         mm.leave(uid);
         // grace period before leaving the party
-        setTimeout(() => {
+        (setTimeout(() => {
           if (!isOnline(uid)) parties.leave(uid);
-        }, 60_000).unref();
+        }, 60_000) as any).unref?.();
         broadcastStatus(uid);
       }
     });

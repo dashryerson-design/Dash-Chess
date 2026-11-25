@@ -1,8 +1,14 @@
 import { io, type Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
+let factory: (() => Socket) | null = null;
+/** In the serverless (P2P) build the socket talks to the in-page server instead of a remote one. */
+export function setSocketFactory(f: () => Socket) {
+  factory = f;
+}
 
 export function getSocket(): Socket {
+  if (!socket && factory) socket = factory();
   if (!socket) {
     socket = io({ withCredentials: true, transports: ['websocket', 'polling'], reconnectionDelay: 500, reconnectionDelayMax: 4000 });
   }

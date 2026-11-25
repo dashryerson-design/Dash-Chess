@@ -102,7 +102,7 @@ export class GameManager {
       this.pipelines.set(room.id, p);
     }
     // keep finished rooms around for rematch / review for a while
-    setTimeout(() => {
+    (setTimeout(() => {
       const r = this.rooms.get(room.id);
       if (r === room) {
         this.rooms.delete(room.id);
@@ -110,7 +110,7 @@ export class GameManager {
       }
       this.rewards.delete(room.id);
       this.pipelines.delete(room.id);
-    }, 15 * 60_000).unref();
+    }, 15 * 60_000) as any).unref?.();
   }
 
   async runPipeline(gameId: string) {

@@ -11,10 +11,19 @@ import { applyDom, getSettings } from './stores/settings';
 
 applyDom(getSettings());
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-);
+export const P2P = import.meta.env.VITE_P2P === '1';
+
+async function start() {
+  if (P2P) {
+    const { bootP2P } = await import('./local/boot');
+    await bootP2P();
+  }
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+        <App />
+      </BrowserRouter>
+    </StrictMode>,
+  );
+}
+void start();

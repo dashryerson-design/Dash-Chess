@@ -12,7 +12,7 @@ interface Entry { position: number; id: string; username: string; icon: string; 
 
 export default function Leaderboards() {
   const [type, setType] = useState<Board>('overall');
-  const [data, setData] = useState<{ entries: Entry[]; myPosition: number | null; season?: { label: string; endsAt: number } } | null>(null);
+  const [data, setData] = useState<{ entries: Entry[]; myPosition: number | null; season?: { label: string; endsAt: number }; p2p?: boolean } | null>(null);
   const me = useSession((s) => s.me);
   const navigate = useNavigate();
 
@@ -29,7 +29,9 @@ export default function Leaderboards() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Leaderboards</h1>
-          <p className="page-sub">{data?.myPosition ? `You are ranked #${data.myPosition} on this board.` : 'Top 100 players. Only players with rated games appear on rating boards.'}</p>
+          <p className="page-sub">
+            {data?.p2p ? 'Players online right now. There is no central server, so rankings are built live from everyone currently in the lobby.' : data?.myPosition ? `You are ranked #${data.myPosition} on this board.` : 'Top 100 players. Only players with rated games appear on rating boards.'}
+          </p>
         </div>
       </div>
       <Tabs
