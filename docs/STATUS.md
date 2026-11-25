@@ -31,7 +31,12 @@ Style metrics from the same run (per move):
 - Checks: Attacker 0.075 vs Defender 0.040; Aggressor 0.094, the highest below the Grandmaster tier.
 - Captures: Defender 0.247 vs Attacker 0.159.
 
-After the first run the top tier was re-tuned (Grandmaster and Destroyer budgets reduced, error rates raised) to widen the gap to the DC Champion. The re-run results for that tier are recorded below.
+After the first run the top tier was re-tuned (Grandmaster and Destroyer budgets reduced, error rates raised) to widen the gap to the DC Champion. Re-run, 4 games each:
+
+```
+Grandmaster     1.0 - 3.0  DC Champion
+The Destroyer   1.0 - 3.0  The Professor
+```
 
 The "approximate Elo" shown on each bot is a design target derived from search budget and error rates. The ordering is verified; absolute Elo against humans is **not** calibrated (that needs real games).
 
