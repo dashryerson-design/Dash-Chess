@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: dash-chess
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/config
+    envVars:
+      - key: DB_PATH
+        value: /app/data/dc-chess.db
