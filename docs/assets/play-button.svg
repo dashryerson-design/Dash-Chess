@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00e5ff"/><stop offset="0.5" stop-color="#7f5bff"/><stop offset="1" stop-color="#ff3df2"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="b1"/><feGaussianBlur stdDeviation="22" result="b2"/>
+      <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .pulse { animation: pulse 1.6s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
+  </defs>
+  <rect width="900" height="260" fill="#06070a"/>
+  <g class="pulse" filter="url(#glow)">
+    <rect x="70" y="45" width="760" height="170" rx="85" fill="none" stroke="url(#g)" stroke-width="10"/>
+    <path d="M220 90 L220 170 L290 130 Z" fill="#00e5ff"/>
+    <text x="520" y="160" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="96" font-weight="900" letter-spacing="14" fill="#ffffff" stroke="url(#g)" stroke-width="3">PLAY</text>
+  </g>
+  <text x="450" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" letter-spacing="8" fill="#7f8aa3">DC CHESS · DASH CHESS</text>
+</svg>

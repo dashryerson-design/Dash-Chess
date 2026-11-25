@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="#quick-start"><img src="docs/assets/play-button.svg" alt="PLAY DC CHESS" width="100%"></a>
+</p>
+
 # DC Chess (Dash Chess)
 
 A competitive online chess platform: 2D and 3D boards, 20 Stockfish-powered bots with distinct personalities, real-time online play (ranked, casual, private rooms, friends and parties), an engine-powered move-rating system, DC Rating divisions, XP/levels, DC Points, a cosmetic shop, achievements, challenges, puzzles, training, an opening explorer, replays and post-game analysis.
