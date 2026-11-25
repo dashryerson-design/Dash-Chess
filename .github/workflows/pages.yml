@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - name: Build serverless web version
         run: npm run build:web
+        env:
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - name: SPA fallback for deep links
         run: cp client/dist/index.html client/dist/404.html
       - uses: actions/configure-pages@v5

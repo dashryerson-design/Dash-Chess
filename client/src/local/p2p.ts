@@ -13,6 +13,7 @@ import { presetById, type GameState, type MatchSettings, type TimeCategory, TIME
 import { ClientSocket, type Server, type ServerSocket } from './io';
 import { localDb, localRt, localApi } from './server';
 import { createSession } from './auth';
+import { cloudEnabled, cloudLeaderboard, cloudSearch, startCloudSync } from './cloud';
 import { getUser, equippedOf, getRatings, overallFor, notify, setPresence, getPresence } from '../../../server/src/users';
 import { sanitizeSettings } from '../../../server/src/social';
 import { persistGame } from '../../../server/src/game/finish';
@@ -848,6 +849,7 @@ function startLobby() {
     publish();
     matchTick();
   }, 1500);
+  startCloudSync();
   publish();
 }
 
@@ -871,7 +873,9 @@ export async function apiOverride(method: string, url: string, body: any): Promi
     const remote = lobbyPlayers()
       .filter((p) => p.name.toLowerCase().startsWith(term) && !seen.has(p.pid))
       .map(profileOf);
-    return { status: 200, json: { users: [...(local.json?.users ?? []).filter((u: any) => isShadow(u.id) || u.id !== currentUid), ...remote].slice(0, 20) } };
+    const known = new Set([...seen, ...remote.map((r) => r.id), currentUid]);
+    const offline = (await cloudSearch(term)).filter((p: any) => !known.has(p.pid)).map((p: any) => ({ id: p.pid, username: p.username, level: p.level, xp: p.xp, icon: p.icon, card: p.card, createdAt: 0, rating: p.rating, peakRating: p.rating, online: false, playing: false }));
+    return { status: 200, json: { users: [...(local.json?.users ?? []).filter((u: any) => isShadow(u.id) || u.id !== currentUid), ...remote, ...offline].slice(0, 20) } };
   }
   if (method === 'POST' && path === '/api/friends/request') {
     const name = String(body?.username ?? '').toLowerCase();
@@ -913,6 +917,10 @@ export async function apiOverride(method: string, url: string, body: any): Promi
   }
   if (method === 'GET' && path === '/api/leaderboard') {
     const type = q.get('type') ?? 'overall';
+    if (cloudEnabled) {
+      const cloud = await cloudLeaderboard(type, currentUid);
+      if (cloud) return { status: 200, json: cloud };
+    }
     const local = (await localApi(method, url)).json;
     const self = myPresence();
     const players = [...lobbyPlayers(), ...(self ? [self] : [])];
