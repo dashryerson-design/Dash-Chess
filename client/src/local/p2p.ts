@@ -25,7 +25,6 @@ const PREFERRED_RELAYS = [
   'wss://relay.primal.net',
   'wss://relay.snort.social',
   'wss://relay.nostr.net',
-  'wss://offchain.pub',
   'wss://nostr.mom',
 ];
 const ICE_SERVERS: RTCIceServer[] = [

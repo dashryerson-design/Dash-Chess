@@ -51,8 +51,10 @@ async function status(p) {
   // friend request A -> B via search
   await a.goto(B + '/friends');
   await a.fill('input[placeholder="Search players by username"]', nameB.slice(0, 5));
-  await a.waitForSelector(`text=${nameB}`, { timeout: 20000 });
-  await a.click('.list.inset .list-item:has-text("' + nameB + '") button:has-text("Add")');
+  await a.waitForTimeout(2500);
+  log('search results:', JSON.stringify(await a.$$eval('.list.inset .list-item', (els) => els.map((e) => e.textContent))));
+  await a.screenshot({ path: `${out}/a-search.png` });
+  await a.click('.list-item:has-text("' + nameB + '") button:has-text("Add")');
   await b.goto(B + '/friends');
   await b.waitForSelector('text=Requests', { timeout: 30000 });
   await b.click('button:has-text("Accept")');
@@ -97,7 +99,7 @@ async function status(p) {
   await W.waitForSelector('.modal', { timeout: 30000 });
   log('PASS game ended');
   await browser.close();
-})().catch((e) => {
+})().catch(async (e) => {
   log('FAIL', e.message);
   process.exit(1);
 });
