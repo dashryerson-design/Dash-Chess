@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Chess, type Square } from 'chess.js';
-import { Flag, Handshake, Undo2, Lightbulb, X, RotateCw, Eye, Box, Square as SquareIcon, ChevronLeft, ChevronRight, Radio, Trophy } from 'lucide-react';
+import { Flag, Handshake, Undo2, Lightbulb, X, RotateCw, Eye, ChevronLeft, ChevronRight, Radio, Trophy } from 'lucide-react';
 import { CATEGORY_LABEL, tcLabel, type GameRewards, type GameState, type MoveRating, type Side } from '@dc/shared';
 import { emit, getSocket } from '../lib/socket';
 import { BoardView } from '../board/BoardView';
@@ -14,6 +14,7 @@ import { useSession } from '../stores/session';
 import { toast } from '../stores/toasts';
 import { moveSound, play } from '../lib/sound';
 import { useElementSize } from '../lib/useSize';
+import { ViewToggle } from '../components/ViewToggle';
 import { CLASS_META } from '@dc/shared';
 
 interface Snapshot {
@@ -26,7 +27,6 @@ export default function Game() {
   const navigate = useNavigate();
   const gp = useSettings((s) => s.gameplay);
   const mode3d = useSettings((s) => s.graphics.mode === '3d');
-  const setSettings = useSettings((s) => s.set);
   const me = useSession((s) => s.me);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -300,12 +300,10 @@ export default function Game() {
             </div>
             <div className="row" style={{ gap: 6 }}>
               {state.spectators > 0 && <span className="badge"><Eye /> {state.spectators}</span>}
-              <button className="icon-btn sm" title={mode3d ? 'Switch to 2D' : 'Switch to 3D'} onClick={() => setSettings('graphics', { mode: mode3d ? '2d' : '3d' })}>
-                {mode3d ? <SquareIcon /> : <Box />}
-              </button>
               <button className="icon-btn sm" title="Flip board (F)" onClick={() => setFlipped((f) => !f)}><RotateCw /></button>
             </div>
           </div>
+          <div style={{ marginTop: 10 }}><ViewToggle /></div>
           {!myColor && <div className="small muted" style={{ marginTop: 8 }}><Eye size={14} style={{ verticalAlign: -2 }} /> You are spectating this game.</div>}
           {state.abortIn !== null && active && myColor && <div className="small" style={{ marginTop: 8, color: 'var(--warn)' }}>Make your first move or the game will be aborted.</div>}
           {state.opponentGoneFor !== null && active && (

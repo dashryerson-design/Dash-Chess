@@ -12,6 +12,7 @@ import { engine, lineEvalWhite, type EngineLine } from '../engine/clientEngine';
 import { fmtDate, fmtEval } from '../lib/format';
 import { toast } from '../stores/toasts';
 import { useElementSize } from '../lib/useSize';
+import { ViewToggle } from '../components/ViewToggle';
 import { useSettings } from '../stores/settings';
 import { useSession } from '../stores/session';
 import type { Marker } from '../board/types';
@@ -250,6 +251,7 @@ export default function Analysis() {
           <button className="icon-btn" aria-label="Next" onClick={() => { setExplore(null); setCursor((c) => Math.min(baseMoves.length - 1, c + 1)); }}><ChevronRight /></button>
           <button className="icon-btn" aria-label="Last" onClick={() => { setExplore(null); setCursor(baseMoves.length - 1); }}><ChevronsRight /></button>
           <button className="icon-btn" aria-label="Flip" onClick={() => setOrientation((o) => (o === 'w' ? 'b' : 'w'))}><RotateCw /></button>
+          <ViewToggle compact />
           <button className={`btn btn-sm ${engineOn ? 'btn-primary' : ''}`} onClick={() => setEngineOn((v) => !v)}><Cpu /> Engine</button>
           {id && (
             <button className="btn btn-sm" onClick={() => { void navigator.clipboard?.writeText(`${location.origin}/analysis/${id}`); toast({ kind: 'success', title: 'Replay link copied', body: 'Anyone with the link can watch this replay.' }); }}>

@@ -7,6 +7,7 @@ import { BoardView } from '../board/BoardView';
 import { Empty, Loading } from '../components/ui';
 import { moveSound, play } from '../lib/sound';
 import { useElementSize } from '../lib/useSize';
+import { ViewToggle } from '../components/ViewToggle';
 import { useSettings } from '../stores/settings';
 import { toastError } from '../stores/toasts';
 
@@ -161,6 +162,7 @@ export default function Puzzles() {
             </div>
           )}
           {outcome && !outcome.first && <div className="tiny muted">Already attempted: no rating change.</div>}
+          <ViewToggle />
           <div className="row" style={{ gap: 8 }}>
             {status === 'solving' && <button className="btn" onClick={showHint}><Lightbulb /> Hint (counts as fail)</button>}
             {solution && <button className="btn" onClick={playSolution}>Show solution</button>}

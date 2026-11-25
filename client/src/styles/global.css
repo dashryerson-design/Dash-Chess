@@ -435,3 +435,14 @@ img { display: block; }
   .clock { font-size: 1.15rem; min-width: 84px; padding: 3px 8px; }
 }
 @media (min-width: 901px) { .show-mobile { display: none !important; } }
+
+/* ------------------------------------------------------------------ 2D / 3D toggle */
+.view-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.view-toggle-label { font-size: 0.76rem; color: var(--text-2); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.view-toggle-track { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: 168px; height: 40px; padding: 3px; border-radius: 10px; background: var(--bg-1); border: 1px solid var(--line-2); }
+.view-toggle.compact .view-toggle-track { width: 128px; height: 34px; }
+.view-toggle-thumb { position: absolute; top: 3px; left: 3px; width: calc(50% - 3px); height: calc(100% - 6px); border-radius: 7px; background: var(--accent-grad); box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.4); transition: transform 0.25s var(--ease); }
+.view-toggle-track button { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: none; cursor: pointer; font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.06em; color: var(--text-2); transition: color 0.2s; }
+.view-toggle-track button svg { width: 15px; height: 15px; }
+.view-toggle-track button.on { color: #fff; }
+.view-toggle-track button:disabled { opacity: 0.4; cursor: not-allowed; }

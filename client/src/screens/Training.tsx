@@ -5,6 +5,7 @@ import { BoardView } from '../board/BoardView';
 import { engine } from '../engine/clientEngine';
 import { moveSound, play } from '../lib/sound';
 import { useElementSize } from '../lib/useSize';
+import { ViewToggle } from '../components/ViewToggle';
 import { useSettings } from '../stores/settings';
 import { Seg } from '../components/ui';
 
@@ -177,6 +178,7 @@ function DrillBoard({ drill, onBack }: { drill: Drill; onBack: () => void }) {
               <input className="range" type="range" min={0} max={20} value={skill} onChange={(e) => setSkill(Number(e.target.value))} />
             </div>
           )}
+          <ViewToggle />
           <div className="row wrap" style={{ gap: 8 }}>
             <button className="btn" onClick={getHint} disabled={status !== 'playing'}><Lightbulb /> Hint</button>
             <button className="btn" onClick={undo}><Undo2 /> Undo</button>

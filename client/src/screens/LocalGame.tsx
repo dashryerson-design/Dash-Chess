@@ -8,6 +8,7 @@ import { PlayerBar, MoveList } from '../components/GameParts';
 import { Modal, Switch } from '../components/ui';
 import { moveSound, play } from '../lib/sound';
 import { useElementSize } from '../lib/useSize';
+import { ViewToggle } from '../components/ViewToggle';
 import { useSettings } from '../stores/settings';
 
 const seat = (name: string, icon: string): SeatInfo => ({ kind: 'human', id: name, name, icon, card: 'card.carbon', level: null, rating: null, provisional: false, connected: true });
@@ -117,6 +118,7 @@ export default function LocalGame() {
             <span style={{ fontWeight: 700 }}>Local match · {timed ? tcLabel({ initial: initial / 1000, increment: inc / 1000 }) : 'Untimed'}</span>
             <button className="icon-btn sm" onClick={() => { setAutoFlip(false); setFlip((f) => !f); }}><RotateCw /></button>
           </div>
+          <div style={{ marginTop: 10 }}><ViewToggle /></div>
           <div className="setting-row" style={{ paddingBottom: 0 }}>
             <div className="small">Rotate board each turn</div>
             <Switch checked={autoFlip} onChange={setAutoFlip} />
