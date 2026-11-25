@@ -10,6 +10,8 @@ import { Division, Points, Progress } from './ui';
 import { timeAgo } from '../lib/format';
 import { api } from '../lib/api';
 import { useRealtime } from '../lib/realtime';
+import { IS_P2P } from '../lib/lobby';
+import { LobbyStatus } from './LobbyStatus';
 import { emit } from '../lib/socket';
 
 const NAV: { to: string; label: string; icon: ReactNode; section?: string }[] = [
@@ -200,9 +202,13 @@ export function Shell({ children }: { children: ReactNode }) {
           </button>
         )}
         <div style={{ flex: 1 }} />
-        <span className="chip-stat hide-xs" title={connected ? 'Connected' : 'Reconnecting…'}>
-          {connected ? <Wifi style={{ color: 'var(--good)' }} /> : <WifiOff style={{ color: 'var(--bad)' }} />}
-        </span>
+        {IS_P2P ? (
+          <LobbyStatus />
+        ) : (
+          <span className="chip-stat hide-xs" title={connected ? 'Connected' : 'Reconnecting…'}>
+            {connected ? <Wifi style={{ color: 'var(--good)' }} /> : <WifiOff style={{ color: 'var(--bad)' }} />}
+          </span>
+        )}
         <Link to="/rankings" className="chip-stat hide-mobile" title="Overall DC Rating">
           <Division rating={me.rating} size={20} provisional={provisional} />
           <span className="mono">{me.rating}</span>

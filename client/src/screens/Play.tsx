@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { OnlineNow } from '../components/OnlineNow';
+import { IS_P2P } from '../lib/lobby';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Zap, Trophy, Coffee, Lock, MonitorSmartphone, Copy, Users, Search, X, Clock, Timer } from 'lucide-react';
 import { CATEGORY_LABEL, PLACEMENT_GAMES, TIME_PRESETS, categoryOf, presetById, tcLabel, type MatchSettings, type TimeCategory } from '@dc/shared';
@@ -153,6 +155,7 @@ export default function Play() {
         </div>
         {activeGameId && <button className="btn btn-primary" onClick={() => navigate(`/game/${activeGameId}`)}>Resume current game</button>}
       </div>
+      {IS_P2P && <OnlineNow />}
       <Tabs
         value={mode}
         onChange={setMode}

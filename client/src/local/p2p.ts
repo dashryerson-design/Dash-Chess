@@ -7,7 +7,7 @@
  * and the other player connects to it over the WebRTC data channel using the normal socket protocol.
  * When the game ends, the guest records it in its own database and computes its own rewards.
  */
-import { joinRoom } from 'trystero';
+import { joinRoom, getRelaySockets, defaultRelayUrls } from 'trystero';
 import { Chess } from 'chess.js';
 import { presetById, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
 import { ClientSocket, type Server, type ServerSocket } from './io';
@@ -19,6 +19,35 @@ import { persistGame } from '../../../server/src/game/finish';
 import type { GameRoom } from '../../../server/src/game/room';
 
 const APP_ID = 'dash-chess-p2p-v1';
+const PREFERRED_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+  'wss://relay.snort.social',
+  'wss://relay.nostr.net',
+  'wss://offchain.pub',
+  'wss://nostr.mom',
+];
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: ['turn:freestun.net:3478'], username: 'free', credential: 'free' },
+];
+
+/** Live connection diagnostics for the UI. */
+export function lobbyStatus() {
+  let open = 0;
+  let total = 0;
+  try {
+    for (const ws of Object.values(getRelaySockets() as Record<string, WebSocket>)) {
+      total++;
+      if (ws.readyState === 1) open++;
+    }
+  } catch {
+    /* not started */
+  }
+  return { started: !!room, relaysOpen: open, relaysTotal: total, players: room ? lobbyPlayers().length : 0, peers: room ? Object.keys(room.getPeers()).length : 0 };
+}
 
 // ------------------------------------------------------------------------------------------------ types
 
@@ -85,7 +114,9 @@ const saveRemote = () => sessionStorage.setItem('dc.remoteGames', JSON.stringify
 export function lobbyPlayers(): Presence[] {
   if (!profileState) return [];
   const all = profileState.getAll();
-  return Object.values(all).filter((p) => p && p.pid && p.pid !== currentUid && Date.now() - p.t < 120_000);
+  // no timestamp filtering: players' computer clocks can disagree; presence disappears when the peer leaves
+  const live = new Set(Object.keys(room?.getUsers() ?? {}));
+  return Object.entries(all).filter(([uid, p]) => p && p.pid && p.pid !== currentUid && live.has(uid)).map(([, p]) => p);
 }
 
 function peerOf(pid: string): string | null {
@@ -758,7 +789,18 @@ function startLobby() {
   // ?relay=ws://... overrides the public Nostr relays (used for local testing)
   const relay = new URLSearchParams(location.search).get('relay') ?? sessionStorage.getItem('dc.relay');
   if (relay) sessionStorage.setItem('dc.relay', relay);
-  room = joinRoom({ appId: APP_ID, identity: 'none', ...(relay ? { relayConfig: { urls: [relay], redundancy: 1 } } : {}) } as any, 'lobby');
+  // Signalling: a broad set of free public Nostr relays (both players pick the same list, so they always overlap).
+  const urls = relay ? [relay] : [...new Set([...PREFERRED_RELAYS, ...(defaultRelayUrls as string[])])].slice(0, 14);
+  room = joinRoom(
+    {
+      appId: APP_ID,
+      identity: 'none',
+      relayConfig: { urls, redundancy: urls.length },
+      // free public STUN + TURN fallbacks so players behind strict home/mobile networks can still connect
+      rtcConfig: { iceServers: ICE_SERVERS },
+    } as any,
+    'lobby',
+  );
   profileState = room.makeUserState<Presence | null>('profile', null) as any;
   const dm = room.makeAction<any>('dm');
   sendWire = (w, peerId) => void dm.send(w, { target: peerId }).catch(() => {});

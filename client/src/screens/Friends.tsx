@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { OnlineNow } from '../components/OnlineNow';
+import { IS_P2P } from '../lib/lobby';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, Users, Search, Check, X, Swords, Crown, LogOut, Copy, Play, UserMinus, Eye, Send } from 'lucide-react';
 import type { PublicProfile } from '@dc/shared';
@@ -195,6 +197,7 @@ export default function Friends() {
           <p className="page-sub">{friends.friends.filter((f) => f.status !== 'offline').length} of {friends.friends.length} friends online.</p>
         </div>
       </div>
+      {IS_P2P && <OnlineNow />}
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(320px,1fr)', gap: 18, alignItems: 'start' }}>
         <div className="col" style={{ gap: 18 }}>
           <div className="panel panel-pad col" style={{ gap: 10 }}>

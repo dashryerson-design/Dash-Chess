@@ -1,0 +1,33 @@
+name: P2P online check (real relays)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['client/src/local/**', 'scripts/p2p-check.cjs', '.github/workflows/p2p-check.yml']
+
+jobs:
+  p2p:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - run: npx playwright@1.49.1 install --with-deps chromium
+      - name: Serve build
+        run: (cd client && VITE_P2P=1 npx vite preview --port 4173 --strictPort &) && sleep 5
+      - name: Two browsers over public relays
+        run: |
+          mkdir -p p2p-out
+          npm i --no-save playwright@1.49.1
+          OUT_DIR=p2p-out node scripts/p2p-check.cjs http://localhost:4173/Dash-Chess
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p2p-screens
+          path: p2p-out
