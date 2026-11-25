@@ -49,21 +49,23 @@ async function status(p) {
   log('PASS discovery');
 
   // friend request A -> B via search
-  await a.goto(B + '/friends');
+  const nav = (p, label) => p.click(`.sidebar >> text=${label}`);
+  await nav(a, 'Friends & Party');
   await a.fill('input[placeholder="Search players by username"]', nameB.slice(0, 5));
-  await a.waitForTimeout(2500);
+  await a.waitForSelector(`.list.inset >> text=${nameB}`, { timeout: 20000 }).catch(() => {});
   log('search results:', JSON.stringify(await a.$$eval('.list.inset .list-item', (els) => els.map((e) => e.textContent))));
   await a.screenshot({ path: `${out}/a-search.png` });
-  await a.click('.list-item:has-text("' + nameB + '") button:has-text("Add")');
-  await b.goto(B + '/friends');
+  await a.click('.list.inset .list-item:has-text("' + nameB + '") button:has-text("Add")');
+  await nav(b, 'Friends & Party');
   await b.waitForSelector('text=Requests', { timeout: 30000 });
   await b.click('button:has-text("Accept")');
   await a.waitForTimeout(3000);
   log('PASS friend request');
 
   // online game via Quick Play
+  log('friends list A:', JSON.stringify(await a.$$eval('.list-item', (els) => els.map((e) => e.textContent).slice(0, 6))));
   for (const p of [a, b]) {
-    await p.goto(B + '/play?mode=quick');
+    await nav(p, 'Play Online');
     await p.click('button:has-text("Find a game")');
   }
   await Promise.all([a.waitForURL(/\/game\//, { timeout: 60000 }), b.waitForURL(/\/game\//, { timeout: 60000 })]);
