@@ -1,0 +1,29 @@
+{
+  "name": "dc-chess",
+  "private": true,
+  "version": "1.0.0",
+  "description": "DC Chess (Dash Chess) - competitive online chess platform",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/copy-engine.mjs && node scripts/dev.mjs",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server",
+    "test": "vitest run",
+    "typecheck": "tsc -p shared && tsc -p server && tsc -p client",
+    "puzzles": "tsx scripts/generate-puzzles.mts 160",
+    "calibrate": "tsx scripts/calibrate-bots.mts 4"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

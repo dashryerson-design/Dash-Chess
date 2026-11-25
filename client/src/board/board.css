@@ -1,0 +1,87 @@
+.board2d { width: 100%; aspect-ratio: 1; position: relative; user-select: none; -webkit-user-select: none; touch-action: none; }
+.board2d-frame { position: absolute; inset: 0; padding: 1.1%; border-radius: 6px; }
+.board2d-squares { position: relative; width: 100%; height: 100%; background-size: 100% 100%; border-radius: 2px; overflow: hidden; }
+.board2d-squares.interactive { cursor: pointer; }
+.board2d .hl, .board2d .piece, .board2d .target, .board2d .fx { position: absolute; left: 0; top: 0; width: 12.5%; height: 12.5%; pointer-events: none; }
+.board2d .hl.hover { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.55); }
+.board2d .hl.check.fx-glow { background: radial-gradient(circle, rgba(255, 40, 40, 0.95) 0%, rgba(255, 40, 40, 0.5) 35%, transparent 72%); }
+.board2d .hl.check.fx-pulse { background: radial-gradient(circle, rgba(255, 40, 40, 0.7) 0%, transparent 70%); animation: chk-pulse 0.9s ease-in-out infinite; }
+.board2d .hl.check.fx-pulse::after { content: ''; position: absolute; inset: 6%; border-radius: 50%; border: 3px solid rgba(255, 60, 60, 0.9); animation: chk-ring 0.9s ease-out infinite; }
+.board2d .hl.check.fx-flare { background: radial-gradient(circle, rgba(255, 240, 200, 0.95) 0%, rgba(255, 90, 40, 0.8) 30%, transparent 75%); animation: chk-pulse 1.4s ease-in-out infinite; }
+@keyframes chk-pulse { 50% { opacity: 0.55; } }
+@keyframes chk-ring { from { transform: scale(0.6); opacity: 1; } to { transform: scale(1.25); opacity: 0; } }
+
+.board2d .piece { background-size: 100% 100%; transition: transform var(--anim-ms) cubic-bezier(0.25, 0.8, 0.25, 1); z-index: 10; will-change: transform; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25)); }
+.board2d .piece.dragging { filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.45)); }
+.board2d .piece.captured { z-index: 9; animation: piece-out 0.38s ease-out forwards; }
+@keyframes piece-out { to { opacity: 0; } }
+
+.board2d .target { display: grid; place-items: center; z-index: 12; }
+.board2d .target i { display: block; }
+.board2d .target.dots i { width: 30%; height: 30%; border-radius: 50%; background: var(--legal); }
+.board2d .target.rings i { width: 34%; height: 34%; border-radius: 50%; border: 4px solid var(--legal); }
+.board2d .target.squares i { width: 100%; height: 100%; background: var(--legal); opacity: 0.8; }
+.board2d .target.cap i { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, transparent 62%, var(--legal) 63%); border: 0; }
+.board2d .target.pre i { opacity: 0.6; }
+
+.board2d .coord { position: absolute; font-size: clamp(8px, 1.6vmin, 13px); font-weight: 700; pointer-events: none; z-index: 11; font-family: var(--font-body); opacity: 0.95; }
+.board2d .coord.file { bottom: 0.4%; width: 12.5%; text-align: right; padding-right: 0.5%; }
+.board2d .coord.rank { left: 0.5%; padding-top: 0.3%; }
+
+.board2d .arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+.board2d .square-flash { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 8; mix-blend-mode: normal; }
+
+.promo-veil { position: absolute; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.45); }
+.promo { position: absolute; width: 12.5%; height: 50%; display: flex; flex-direction: column; background: #f2f2f2; border-radius: 4px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.promo button { flex: 1; border: 0; background: #f2f2f2 center/90% no-repeat; cursor: pointer; transition: background-color 0.12s; }
+.promo button:hover { background-color: #cfe0ff; }
+
+/* ---------------- move effects ---------------- */
+.board2d .fx { z-index: 15; }
+.board2d .fx i { position: absolute; inset: 0; display: block; }
+.fx-spark i { background: radial-gradient(circle, #fff 0 4%, transparent 5%); animation: spark 0.6s ease-out forwards; }
+.fx-spark i:nth-child(2) { animation-delay: 0.05s; transform: rotate(60deg); }
+.fx-spark i:nth-child(3) { animation-delay: 0.1s; transform: rotate(120deg); }
+@keyframes spark { 0% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 230, 120, 0.9); } 100% { opacity: 0; transform: scale(1.6) rotate(40deg); box-shadow: 0 0 30px 6px rgba(255, 230, 120, 0); } }
+.fx-ripple i { border-radius: 50%; border: 3px solid rgba(var(--accent-rgb), 0.9); animation: ripple 0.7s ease-out forwards; opacity: 0; }
+.fx-ripple i:nth-child(2) { animation-delay: 0.12s; }
+.fx-ripple i:nth-child(3) { animation-delay: 0.24s; }
+@keyframes ripple { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(1.3); } }
+.fx-comet i { border-radius: 50%; background: radial-gradient(circle, rgba(140, 200, 255, 0.9), rgba(var(--accent-2-rgb), 0.4) 40%, transparent 70%); animation: comet 0.7s ease-out forwards; }
+.fx-comet i:nth-child(2), .fx-comet i:nth-child(3) { display: none; }
+@keyframes comet { 0% { opacity: 1; transform: scale(1.4); } 100% { opacity: 0; transform: scale(0.5); } }
+.fx-royal i { border-radius: 50%; background: radial-gradient(circle, rgba(255, 220, 120, 0.95), rgba(255, 170, 40, 0.4) 45%, transparent 70%); animation: comet 0.8s ease-out forwards; }
+.fx-royal i:nth-child(2) { background: conic-gradient(from 0deg, transparent, rgba(255, 220, 120, 0.8), transparent 30%); animation: royal-spin 0.8s ease-out forwards; }
+.fx-royal i:nth-child(3) { display: none; }
+@keyframes royal-spin { to { transform: rotate(270deg) scale(1.4); opacity: 0; } }
+
+/* ---------------- capture effects ---------------- */
+.fx-fade i { display: none !important; }
+.fx-burst i { border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(255, 170, 60, 0.6) 30%, transparent 65%); animation: burst 0.5s ease-out forwards; }
+.fx-burst i:nth-child(n + 2) { display: none; }
+@keyframes burst { 0% { transform: scale(0.2); opacity: 1; } 100% { transform: scale(1.7); opacity: 0; } }
+.fx-shatter i { background: linear-gradient(135deg, rgba(220, 235, 255, 0.95) 0 30%, transparent 31%); clip-path: polygon(50% 50%, 100% 0, 100% 60%); animation: shard 0.6s ease-out forwards; }
+.fx-shatter i:nth-child(2) { clip-path: polygon(50% 50%, 0 20%, 30% 100%); animation-name: shard2; }
+.fx-shatter i:nth-child(3) { clip-path: polygon(50% 50%, 60% 100%, 0 70%); animation-name: shard3; }
+@keyframes shard { to { transform: translate(40%, -50%) rotate(40deg); opacity: 0; } }
+@keyframes shard2 { to { transform: translate(-50%, -20%) rotate(-60deg); opacity: 0; } }
+@keyframes shard3 { to { transform: translate(10%, 60%) rotate(80deg); opacity: 0; } }
+.fx-vortex i { border-radius: 50%; background: conic-gradient(from 0deg, rgba(var(--accent-2-rgb), 0.9), transparent 40%, rgba(var(--accent-rgb), 0.9) 60%, transparent); animation: vortex 0.6s ease-in forwards; }
+.fx-vortex i:nth-child(n + 2) { display: none; }
+@keyframes vortex { from { transform: rotate(0) scale(1.3); opacity: 1; } to { transform: rotate(540deg) scale(0); opacity: 0.2; } }
+.fx-lightning i { background: linear-gradient(180deg, transparent, rgba(190, 220, 255, 1) 45%, #fff 50%, rgba(190, 220, 255, 1) 55%, transparent); clip-path: polygon(55% 0, 35% 45%, 52% 45%, 40% 100%, 68% 38%, 50% 38%, 66% 0); animation: bolt 0.45s steps(2) forwards; }
+.fx-lightning i:nth-child(2) { clip-path: none; background: radial-gradient(circle, rgba(170, 210, 255, 0.8), transparent 65%); animation: burst 0.5s ease-out forwards; }
+.fx-lightning i:nth-child(3) { display: none; }
+@keyframes bolt { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------------- 3D ---------------- */
+.board3d { position: relative; width: 100%; height: 100%; min-height: 280px; border-radius: 10px; overflow: hidden; background: #07080b; }
+.board3d-host { position: absolute; inset: 0; }
+.board3d-loading { position: absolute; inset: 0; display: grid; place-items: center; }
+.board3d .cam-controls { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; opacity: 0.75; transition: opacity 0.2s; }
+.board3d .cam-controls:hover { opacity: 1; }
+.board3d .cam-controls .icon-btn { background: rgba(10, 12, 18, 0.7); backdrop-filter: blur(6px); }
+.board3d-promo { position: absolute; left: 50%; top: 50%; width: min(70%, 70vh); aspect-ratio: 1; transform: translate(-50%, -50%); z-index: 20; }
+.board3d-promo .promo-veil { background: transparent; }
+.board3d-promo .promo { left: 43.75% !important; top: 25% !important; bottom: auto !important; height: 50%; }
+.board3d-fail { width: 100%; height: 100%; display: flex; }
