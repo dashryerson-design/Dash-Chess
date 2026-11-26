@@ -39,7 +39,7 @@ async function tablebase(fen: string): Promise<string | null> {
   if (pieces > 7) return null;
   try {
     const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 4000);
+    const t = setTimeout(() => ctl.abort(), 1500);
     const r = await fetch(`https://tablebase.lichess.ovh/standard?fen=${encodeURIComponent(fen)}`, { signal: ctl.signal });
     clearTimeout(t);
     if (!r.ok) return null;
@@ -81,7 +81,7 @@ async function baitScore(history: string[], u: string, depth: number): Promise<n
   const mv = play(c, u);
   if (c.isGameOver()) return 0;
   const replies = c.moves({ verbose: true });
-  const lines = await engine.search(startFen, { moves: [...history, u], depth: Math.max(8, depth - 6), multipv: Math.min(8, replies.length) });
+  const lines = await engine.search(startFen, { moves: [...history, u], depth: Math.max(8, depth - 6), movetime: 250, multipv: Math.min(6, replies.length) });
   if (lines.length < 2) return 0;
   const oppBest = cpOf(lines[0]);
   let bonus = 0;
@@ -113,7 +113,7 @@ export interface Suggestion {
   source: 'book' | 'tablebase' | 'engine';
 }
 
-export async function suggestMove(history: string[], style: HackStyle, clockMs: number | null, isAlive: () => boolean, fromFen: string = START): Promise<Suggestion | null> {
+export async function suggestMove(history: string[], style: HackStyle, clockMs: number | null, isAlive: () => boolean, fromFen: string = START, onProgress?: (uci: string) => void): Promise<Suggestion | null> {
   startFen = fromFen;
   const c = replay(history);
   const legal = c.moves({ verbose: true });
@@ -131,50 +131,75 @@ export async function suggestMove(history: string[], style: HackStyle, clockMs: 
     if (book && legal.some((m) => uciOf(m) === book)) return { uci: book, source: 'book' };
   }
 
-  // 3. deep, history-aware engine search; budget follows the clock
-  const movetime = clockMs === null ? 3500 : Math.max(400, Math.min(6000, clockMs / 25));
-  const multipv = style === 'goat' ? 3 : 8;
-  const lines = await engine.search(startFen, { moves: history, depth: 30, movetime, multipv: Math.min(multipv, legal.length) });
-  if (!isAlive() || !lines.length) return null;
-
-  const best = cpOf(lines[0]);
-  // forced mate: always take the fastest one
-  if (lines[0].mate !== null && lines[0].mate > 0) return { uci: lines[0].pv[0], source: 'engine' };
-
-  // never throw away a win: drop drawing moves when better, and moves that cost the result
-  const safe = lines.filter((l) => {
-    const u = l.pv[0];
-    if (!u) return false;
-    if (best > 120 && drawsImmediately(history, u)) return false;
-    const v = cpOf(l);
-    if (best > 300 && v < 200) return false; // winning must stay winning
-    if (best > -100 && wp(best) - wp(v) > 0.06) return false; // no more than 6% expected-score loss
-    return true;
+  // 3. history-aware engine search, streamed: a provisional pick after the first iterations,
+  //    refined as the search deepens. Total budget is short and follows the clock.
+  const movetime = clockMs === null ? 1200 : Math.max(250, Math.min(1500, clockMs / 40));
+  const multipv = Math.min(style === 'goat' ? 2 : 6, legal.length);
+  const fen = c.fen();
+  let lastSent = '';
+  let lastAt = 0;
+  const lines = await new Promise<EngineLine[]>((resolve) => {
+    void engine
+      .analyse(startFen, { moves: history, depth: 30, movetime, multipv, skill: 20 }, (ls, done) => {
+        if (!isAlive()) return done && resolve([]);
+        if (done) return resolve(ls);
+        const depth = ls[0]?.depth ?? 0;
+        if (depth < 8 || ls.length < multipv || performance.now() - lastAt < 120) return;
+        const u = choose(ls, history, style, fen);
+        if (u && u !== lastSent) {
+          lastSent = u;
+          lastAt = performance.now();
+          onProgress?.(u);
+        }
+      })
+      .catch(() => resolve([]));
   });
-  // when clearly losing, a forced draw is a great result
-  if (best < -250) {
-    const drawing = lines.find((l) => l.pv[0] && drawsImmediately(history, l.pv[0]));
-    if (drawing) return { uci: drawing.pv[0], source: 'engine' };
-  }
-  const pool = safe.length ? safe : [lines[0]];
-  if (style === 'goat') return { uci: pool[0].pv[0], source: 'engine' };
+  if (!isAlive() || !lines.length) return lastSent ? { uci: lastSent, source: 'engine' } : null;
 
   if (style === 'sacrifice') {
-    // rank sound candidates by sacrifice + bait value
+    // rank the sound candidates by sacrifice + bait value (short, fast searches)
+    const pool = safePool(lines, history);
     let pick = { uci: pool[0].pv[0], u: -Infinity };
-    for (const l of pool.slice(0, 5)) {
+    for (const l of pool.slice(0, 3)) {
       if (!isAlive()) return null;
       const u = l.pv[0];
       const sac = isSacrifice(history, u) ? 120 : 0;
-      const bait = await baitScore(history, u, 18);
+      const bait = await baitScore(history, u, 14);
       const util = cpOf(l) + sac + bait;
       if (util > pick.u) pick = { uci: u, u: util };
     }
     return { uci: pick.uci, source: 'engine' };
   }
+  return { uci: choose(lines, history, style, fen) ?? lines[0].pv[0], source: 'engine' };
+}
 
-  const styled = pickStyledMove(c.fen(), pool, style);
-  return { uci: styled?.uci ?? pool[0].pv[0], source: 'engine' };
+/** Candidates that keep the expected result (never throw away a win, never walk into a draw when better). */
+function safePool(lines: EngineLine[], history: string[]): EngineLine[] {
+  const best = cpOf(lines[0]);
+  const safe = lines.filter((l) => {
+    const u = l.pv[0];
+    if (!u) return false;
+    if (best > 120 && drawsImmediately(history, u)) return false;
+    const v = cpOf(l);
+    if (best > 300 && v < 200) return false;
+    if (best > -100 && wp(best) - wp(v) > 0.06) return false;
+    return true;
+  });
+  return safe.length ? safe : [lines[0]];
+}
+
+/** Synchronous choice for a set of engine lines (used for provisional and final picks). */
+function choose(lines: EngineLine[], history: string[], style: HackStyle, fen: string): string | null {
+  if (!lines.length || !lines[0].pv[0]) return null;
+  if (lines[0].mate !== null && lines[0].mate > 0) return lines[0].pv[0];
+  const best = cpOf(lines[0]);
+  if (best < -250) {
+    const drawing = lines.find((l) => l.pv[0] && drawsImmediately(history, l.pv[0]));
+    if (drawing) return drawing.pv[0];
+  }
+  const pool = safePool(lines, history);
+  if (style === 'goat' || style === 'sacrifice') return pool[0].pv[0];
+  return pickStyledMove(fen, pool, style)?.uci ?? pool[0].pv[0];
 }
 
 const uciOf = (m: Move) => m.from + m.to + (m.promotion ?? '');

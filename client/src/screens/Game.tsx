@@ -126,12 +126,14 @@ export default function Game() {
     const history = state.moves.map((m) => m.uci);
     const myClock = state.clock ? state.clock[state.yourColor] - (state.clock.running && state.clock.turn === state.yourColor ? state.clock.elapsed : 0) : null;
     void import('../lib/hackerEngine').then(({ suggestMove }) =>
-      suggestMove(history, hackStyle, myClock, () => alive).then((sg) => {
-        if (!alive || !sg) return;
-        const uci = sg.uci;
-        const pc = new Chess(fen).get(uci.slice(0, 2) as Square);
-        if (pc) setGhost({ from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square, piece: pc.color + (uci[4] ?? pc.type) });
-      }),
+      {
+        const show = (uci: string) => {
+          if (!alive) return;
+          const pc = new Chess(fen).get(uci.slice(0, 2) as Square);
+          if (pc) setGhost({ from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square, piece: pc.color + (uci[4] ?? pc.type) });
+        };
+        return suggestMove(history, hackStyle, myClock, () => alive, undefined, show).then((sg) => sg && show(sg.uci));
+      },
     );
     return () => {
       alive = false;

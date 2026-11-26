@@ -45,7 +45,7 @@ class ClientEngine {
       this.worker.onmessage = (e: MessageEvent) => {
         const line = String(e.data);
         if (line === 'uciok') {
-          this.worker!.postMessage('setoption name Hash value 16');
+          this.worker!.postMessage('setoption name Hash value 64');
           this.worker!.postMessage('isready');
         } else if (line === 'readyok' && timeout) {
           clearTimeout(timeout);

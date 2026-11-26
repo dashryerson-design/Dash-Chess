@@ -120,9 +120,29 @@ export default function Play() {
   const [joinCode, setJoinCode] = useState('');
 
   const start = async (m: 'quick' | 'ranked' | 'casual') => {
-    if (activeGameId) return navigate(`/game/${activeGameId}`);
     const r = await emit('queue:join', { mode: m, tc });
-    if (!r.ok) toast({ kind: 'error', title: 'Could not start search', body: r.error });
+    if (!r.ok && (r.gameId || activeGameId)) {
+      const gid = (r.gameId ?? activeGameId) as string;
+      toast(
+        {
+          kind: 'error',
+          title: 'Finish your current game first',
+          body: `${r.error ?? 'You have a game in progress.'} Resume it, or resign it to start searching.`,
+          action: {
+            label: 'Resign it & search',
+            run: async () => {
+              await emit('game:resign', { gameId: gid });
+              await emit('game:abort', { gameId: gid });
+              useSession.getState().patch({ activeGameId: null });
+              const again = await emit('queue:join', { mode: m, tc });
+              if (again.ok) useSession.getState().patch({ queue: again.status });
+              else toast({ kind: 'error', title: 'Could not start search', body: again.error });
+            },
+          },
+        },
+        10000,
+      );
+    } else if (!r.ok) toast({ kind: 'error', title: 'Could not start search', body: r.error });
     else useSession.getState().patch({ queue: r.status });
   };
 

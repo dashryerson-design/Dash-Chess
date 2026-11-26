@@ -158,10 +158,25 @@ function myPresence(): Presence | null {
     t: Date.now(),
   };
 }
+/** Are we a player in an unfinished game hosted by someone else? Stale entries (finished, recorded,
+ *  spectated, or whose host has left) never block matchmaking. */
 function remoteActive() {
-  for (const [gid] of remoteGames) if (!finishedRemote.has(gid)) return true;
+  for (const [gid, hostPid] of [...remoteGames]) {
+    const dead =
+      finishedRemote.has(gid) ||
+      spectating.has(gid) ||
+      !!localDb.prepare('SELECT 1 FROM games WHERE id = ?').get(gid) ||
+      !lobbyPlayers().some((p) => p.pid === hostPid && p.status === 'playing');
+    if (dead) {
+      if (!spectating.has(gid)) remoteGames.delete(gid);
+      continue;
+    }
+    return true;
+  }
+  saveRemote();
   return false;
 }
+const spectating = new Set<string>();
 let publishTimer: number | null = null;
 export function publish() {
   if (publishTimer) return;
@@ -289,8 +304,11 @@ function sessionTo(hostPid: string): Session | null {
 
 const finishedRemote = new Set<string>();
 function onRemoteState(hostPid: string, st: GameState) {
-  if (st.status !== 'ended' || finishedRemote.has(st.id) || !st.yourColor || !st.result) return;
+  if (st.status !== 'ended' || finishedRemote.has(st.id) || !st.result) return;
   finishedRemote.add(st.id);
+  remoteGames.delete(st.id);
+  saveRemote();
+  if (!st.yourColor) return;
   publish();
   const host = lobbyPlayers().find((p) => p.pid === hostPid);
   if (host) ensureShadow(host);
@@ -632,7 +650,9 @@ export class RouterSocket {
     }
     switch (ev) {
       case 'queue:join': {
-        if (localRt.games.activeGameOf(currentUid!) || remoteActive()) return reply({ ok: false, error: 'You are already in a game.' });
+        const open = localRt.games.activeGameOf(currentUid!);
+        if (open) return reply({ ok: false, error: `You still have an unfinished ${open.mode === 'bot' ? 'bot ' : ''}game.`, gameId: open.id });
+        if (remoteActive()) return reply({ ok: false, error: 'You are in an online game right now.', gameId: [...remoteGames.keys()][0] });
         const tc = payload.mode === 'quick' ? '5+0' : String(payload.tc ?? '5+0');
         const preset = presetById(tc);
         if (!preset) return reply({ ok: false, error: 'Unknown time control.' });
@@ -754,6 +774,7 @@ export class RouterSocket {
         if (gid && !localRt.games.rooms.has(gid)) {
           const host = lobbyPlayers().find((p) => p.games.some((g) => g.id === gid));
           if (host) {
+            spectating.add(gid);
             remoteGames.set(gid, host.pid);
             saveRemote();
             return this.emit(ev, payload, ack);
