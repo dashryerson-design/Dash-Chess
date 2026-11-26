@@ -45,15 +45,15 @@ describe('DC Rating (Elo)', () => {
   it('gives symmetric changes for equal players', () => {
     const w = ratingChange(1500, 30, 1500, 1);
     const l = ratingChange(1500, 30, 1500, 0);
-    expect(w.delta).toBe(12);
-    expect(l.delta).toBe(-12);
+    expect(w.delta).toBe(16);
+    expect(l.delta).toBe(-16);
     expect(ratingChange(1500, 30, 1500, 0.5).delta).toBe(0);
   });
   it('rewards upsets more and uses a higher K during placement', () => {
     const upset = ratingChange(1200, 30, 1600, 1).delta;
     const expected = ratingChange(1600, 30, 1200, 1).delta;
     expect(upset).toBeGreaterThan(expected);
-    expect(ratingChange(1200, 2, 1200, 1).delta).toBe(20); // K=40 provisional
+    expect(ratingChange(1200, 2, 1200, 1).delta).toBe(40); // K=80 provisional
   });
   it('never drops below the floor and always moves at least one point', () => {
     expect(ratingChange(105, 30, 2000, 0).after).toBeGreaterThanOrEqual(100);

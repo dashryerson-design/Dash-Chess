@@ -13,10 +13,13 @@ export function expectedScore(rating: number, opponent: number): number {
 }
 
 export function kFactor(rating: number, gamesPlayed: number): number {
-  if (gamesPlayed < PLACEMENT_GAMES) return 40;
-  if (rating < 2000) return 24;
-  if (rating < 2400) return 16;
-  return 12;
+  // Generous early swings (like a new chess.com account) so players reach their level fast.
+  if (gamesPlayed < 5) return 80;
+  if (gamesPlayed < PLACEMENT_GAMES) return 60;
+  if (gamesPlayed < 30) return 40;
+  if (rating < 2000) return 32;
+  if (rating < 2400) return 24;
+  return 16;
 }
 
 export interface RatingChange {
