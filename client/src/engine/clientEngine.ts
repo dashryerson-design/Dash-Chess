@@ -86,7 +86,7 @@ class ClientEngine {
   }
 
   /** Analyse a position; previous search is stopped. Scores are from the side to move. */
-  async analyse(fen: string, opts: { depth?: number; multipv?: number; movetime?: number; skill?: number }, listener: Listener) {
+  async analyse(fen: string, opts: { depth?: number; multipv?: number; movetime?: number; skill?: number; moves?: string[] }, listener: Listener) {
     await this.start();
     const go = () => {
       this.lines.clear();
@@ -94,8 +94,9 @@ class ClientEngine {
       this.searching = true;
       this.worker!.postMessage(`setoption name MultiPV value ${opts.multipv ?? 1}`);
       this.worker!.postMessage(`setoption name Skill Level value ${opts.skill ?? 20}`);
-      this.worker!.postMessage(`position fen ${fen}`);
-      this.worker!.postMessage(`go ${opts.movetime ? `movetime ${opts.movetime}` : `depth ${opts.depth ?? 16}`}`);
+      this.worker!.postMessage(`position fen ${fen}${opts.moves?.length ? ` moves ${opts.moves.join(' ')}` : ''}`);
+      const limits = [opts.depth ? `depth ${opts.depth}` : '', opts.movetime ? `movetime ${opts.movetime}` : ''].filter(Boolean).join(' ') || 'depth 16';
+      this.worker!.postMessage(`go ${limits}`);
     };
     if (this.searching) {
       this.pending = go;
@@ -110,6 +111,13 @@ class ClientEngine {
       void this.analyse(fen, { ...opts, multipv: 1 }, () => {}).then(() => {
         this.onBest = resolve;
       }).catch(() => resolve(null));
+    });
+  }
+
+  /** Promise form: final MultiPV lines (scores from the side to move in the final position). */
+  search(fen: string, opts: { depth?: number; multipv?: number; movetime?: number; moves?: string[] }): Promise<EngineLine[]> {
+    return new Promise((resolve) => {
+      void this.analyse(fen, { ...opts, skill: 20 }, (lines, done) => done && resolve(lines)).catch(() => resolve([]));
     });
   }
 

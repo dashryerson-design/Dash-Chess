@@ -9,7 +9,7 @@ export const HACK_STYLES: { id: HackStyle; label: string; desc: string }[] = [
   { id: 'offence', label: 'Insane Offence', desc: 'Checks, captures and threats whenever they work.' },
   { id: 'attack', label: 'Overwhelming Attack', desc: 'Pile pieces and pawns onto their king.' },
   { id: 'sacrifice', label: 'Intelligent Sacrificing', desc: 'Sound sacrifices that keep you winning.' },
-  { id: 'alien', label: 'Alien Gambit', desc: 'Bizarre-looking moves that still hold up.' },
+  { id: 'alien', label: 'Alien Gambit', desc: "Witty Alien's Caro-Kann gambit (5.Ng5 and 6.Nxf7!?), then all-out sacrificial attack." },
 ];
 
 /** How far below the best engine score (centipawns) a style may go, and its feature weights. */
@@ -19,7 +19,7 @@ const CFG: Record<HackStyle, { window: number; w: Partial<Record<Feature, number
   offence: { window: 80, w: { check: 55, capture: 30, aggression: 15, quiet: -25 } },
   attack: { window: 70, w: { aggression: 30, pressure: 18, pawnStorm: 35, check: 20, trade: -20 } },
   sacrifice: { window: 60, w: { sacrifice: 90, check: 15, aggression: 10 } },
-  alien: { window: 120, w: { weird: 70, sacrifice: 30, quiet: 10 } },
+  alien: { window: 90, w: { sacrifice: 60, aggression: 25, pressure: 15, check: 30, quiet: -20 } },
 };
 
 type Feature = 'quiet' | 'kingSafety' | 'trade' | 'capture' | 'aggression' | 'pressure' | 'pawnStorm' | 'check' | 'sacrifice' | 'weird';
