@@ -64,12 +64,16 @@ export function rivalRating(r: Rival, cat?: TimeCategory, d = day()): number {
 
 export function rivalProfile(r: Rival, d = day()) {
   const h = hash(r.id);
-  const ageDays = 40 + (h % 500);
-  const games = Math.round(ageDays * (0.6 + (h % 50) / 25)) + (d % 997);
+  // Level follows skill: weak players are low level, the strongest are veterans. A little per-player
+  // variation (some grind more than others), plus slow growth over time.
+  const skill = Math.min(1, Math.max(0, (r.base - 600) / 1900));
+  const jitter = ((h >>> 3) % 9) - 3; // -3..+5
+  const level = Math.max(2, Math.min(90, Math.round(3 + Math.pow(skill, 1.25) * 72 + jitter + (d % 365) / 120)));
+  const games = Math.round(level * level * 0.9 + 15 + (h % 40));
+  const ageDays = Math.round(20 + games / (1.5 + (h % 30) / 10));
   const winRate = 0.42 + Math.min(0.16, (r.base - 650) / 12000);
   const wins = Math.round(games * winRate);
   const draws = Math.round(games * 0.07);
-  const level = Math.max(3, Math.min(99, Math.round(Math.sqrt(games) * 1.6)));
   const ratings = Object.fromEntries(
     TIME_CATEGORIES.map((c, i) => [c, { rating: rivalRating(r, c, d), games: Math.round(games * [0.15, 0.45, 0.3, 0.1][i]) }]),
   ) as Record<TimeCategory, { rating: number; games: number }>;
