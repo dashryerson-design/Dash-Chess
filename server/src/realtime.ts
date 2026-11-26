@@ -262,11 +262,7 @@ export function createRealtime(http: HttpServer, db: DB, opts: { corsOrigin?: st
       withSide(p, ack, (room, side) => {
         if (room.status !== 'active') return ack({ ok: false });
         room.hintsUsed[side]++;
-        // Engine-assisted games stop counting for rating when a real player is on the other side, so their
-        // rating is never affected. Against AI rivals only the admin's own rating moves, so the game stays rated.
-        const opp = room.seats[side === 'w' ? 'b' : 'w'];
-        const vsRival = opp.kind === 'bot' && !!(opp as { rival?: unknown }).rival;
-        if (!vsRival) (room.settings as { rated: boolean }).rated = false;
+        // admin assist (hacker mode) no longer changes whether the game is rated
         ack({ ok: true });
       }),
     );
