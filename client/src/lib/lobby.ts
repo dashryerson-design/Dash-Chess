@@ -30,7 +30,8 @@ export function useLobby(): LobbyInfo {
       import('../local/p2p').then((m) => {
         if (!alive) return;
         const s = m.lobbyStatus();
-        setInfo({ ...s, players: m.lobbyPlayers().map((p) => ({ pid: p.pid, name: p.name, icon: p.icon, level: p.level, rating: p.rating, status: p.status })) });
+        const humans = m.lobbyPlayers().map((p) => ({ pid: p.pid, name: p.name, icon: p.icon, level: p.level, rating: p.rating, status: p.status }));
+        setInfo({ ...s, players: [...humans, ...m.rivalLobby()] });
       });
     void tick();
     const t = setInterval(tick, 2000);

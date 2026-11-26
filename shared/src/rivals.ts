@@ -76,11 +76,29 @@ export function rivalProfile(r: Rival, d = day()) {
   return { games, wins, draws, losses: games - wins - draws, level, xp: level * level * 95, ratings, rating: rivalRating(r, undefined, d), createdAt: Date.now() - ageDays * 86400000 };
 }
 
-/** The engine personality whose strength best matches a rating. */
+/**
+ * The engine personality for a rival rating. Strength climbs much faster than the rating above 1500, so
+ * high-ranked rivals are far harder to beat than their number suggests and the very top ones (2300+)
+ * play at full engine strength — practically unbeatable.
+ */
 export function engineForRating(rating: number): BotProfile {
+  const target = rating <= 1500 ? rating : 1500 + (rating - 1500) * 1.9;
   let best = BOTS[0];
-  for (const b of BOTS) if (Math.abs(b.elo - rating) < Math.abs(best.elo - rating)) best = b;
+  for (const b of BOTS) if (Math.abs(b.elo - target) < Math.abs(best.elo - target)) best = b;
   return best;
+}
+
+/** Rivals currently "online" (same for everyone). Rotates every 20 minutes; busier in the evening. */
+export function onlineRivals(now = Date.now()): { rival: Rival; status: 'online' | 'playing' }[] {
+  const slot = Math.floor(now / 1_200_000);
+  const hour = new Date(now).getHours();
+  // 3 overnight, up to 8 in the evening
+  const target = hour < 7 ? 3 : hour < 12 ? 5 : hour < 17 ? 6 : hour < 23 ? 8 : 4;
+  const ranked = [...RIVALS].sort((a, b) => hash(`${a.id}|${slot}`) - hash(`${b.id}|${slot}`));
+  // a few stay on across neighbouring slots so the list changes gradually, not all at once
+  const sticky = [...RIVALS].sort((a, b) => hash(`${a.id}|${slot >> 2}`) - hash(`${b.id}|${slot >> 2}`)).slice(0, 2);
+  const chosen = [...new Set([...sticky, ...ranked])].slice(0, target);
+  return chosen.map((rival) => ({ rival, status: hash(`${rival.id}|p|${Math.floor(now / 300_000)}`) % 4 === 0 ? 'playing' : 'online' }));
 }
 
 const PREFIX = [

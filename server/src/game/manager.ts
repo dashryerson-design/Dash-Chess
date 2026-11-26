@@ -2,6 +2,7 @@ import {
   BOT_BY_ID,
   engineForRating,
   pickRival,
+  type Rival,
   rivalProfile,
   rivalRating,
   PLACEMENT_GAMES,
@@ -77,15 +78,16 @@ export class GameManager {
   }
 
   /** Ranked/casual backfill: an AI rival from the leaderboard, engine strength matched to its rating. */
-  createRivalGame(mode: 'ranked' | 'casual', settings: MatchSettings, human: HumanRef): GameRoom {
+  createRivalGame(mode: 'ranked' | 'casual', settings: MatchSettings, human: HumanRef, chosen?: Rival): GameRoom {
     const cat = categoryOf(settings.tc);
     const seatH = this.humanSeat(human, cat);
-    const rival = pickRival(seatH.rating, cat);
+    const rival = chosen ?? pickRival(seatH.rating, cat);
     const rating = rivalRating(rival, cat);
     const prof = rivalProfile(rival);
     const seatB: Seat = { kind: 'bot', bot: engineForRating(rating), rival: { id: rival.id, name: rival.name, rating, icon: rival.icon, card: rival.card, level: prof.level } };
     const humanWhite = Math.random() < 0.5;
-    return this.create(mode, { ...settings, rated: mode === 'ranked', color: 'random', assistance: false, takebacks: false }, humanWhite ? seatH : seatB, humanWhite ? seatB : seatH);
+    const white = settings.color === 'white' ? true : settings.color === 'black' ? false : humanWhite;
+    return this.create(mode, { ...settings, rated: mode === 'ranked', color: 'random', assistance: false, takebacks: false }, white ? seatH : seatB, white ? seatB : seatH);
   }
 
   private create(mode: GameMode, settings: MatchSettings, white: Seat, black: Seat): GameRoom {

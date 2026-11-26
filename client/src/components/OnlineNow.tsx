@@ -45,7 +45,7 @@ export function OnlineNow() {
                 <div style={{ fontWeight: 700 }}>{p.name}</div>
                 <div className="row tiny muted" style={{ gap: 6 }}><span className={`status-dot ${p.status}`} /> {p.status} · LV {p.level} · {p.rating}</div>
               </div>
-              {!friendIds.has(p.pid) && <button className="btn btn-sm" onClick={() => add(p.name)}><UserPlus /> <span className="hide-xs">Add friend</span></button>}
+              {!friendIds.has(p.pid) && !p.pid.startsWith('rival_') && <button className="btn btn-sm" onClick={() => add(p.name)}><UserPlus /> <span className="hide-xs">Add friend</span></button>}
               <button className="btn btn-sm btn-primary" disabled={p.status === 'playing'} onClick={() => challenge(p.pid, p.name)}><Swords /> Challenge</button>
             </div>
           ))}

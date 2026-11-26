@@ -9,7 +9,7 @@
  */
 import { joinRoom, getRelaySockets, defaultRelayUrls } from 'trystero';
 import { Chess } from 'chess.js';
-import { presetById, RIVALS, RIVAL_BY_ID, RIVAL_WAIT_MS, findRival, rivalProfile, rivalRating, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
+import { presetById, RIVALS, RIVAL_BY_ID, RIVAL_WAIT_MS, findRival, onlineRivals, type Rival, rivalProfile, rivalRating, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
 import { ClientSocket, type Server, type ServerSocket } from './io';
 import { localDb, localRt, localApi } from './server';
 import { createSession } from './auth';
@@ -674,6 +674,7 @@ export class RouterSocket {
         const s = sanitizeSettings(payload.settings, { allowUntimed: false, allowRated: true });
         if (typeof s === 'string') return reply({ ok: false, error: s });
         const code = Math.random().toString(36).slice(2, 8).toUpperCase().replace(/[O0I1]/g, 'X');
+        if (payload.to && String(payload.to).startsWith('rival_')) return reply(challengeRival(String(payload.to), s, code));
         if (payload.to) {
           const peer = peerOf(String(payload.to));
           if (!peer) return reply({ ok: false, error: 'That player is not online.' });
@@ -688,6 +689,19 @@ export class RouterSocket {
       case 'challenge:accept': {
         const id = String(payload.id ?? '').toUpperCase();
         const inc = incomingChallenges.get(id);
+        if (inc && inc.from.startsWith('rival_')) {
+          incomingChallenges.delete(id);
+          const rv = findRival(inc.from);
+          if (!rv) return reply({ ok: false, error: 'That player went offline.' });
+          if (localRt.games.activeGameOf(currentUid!) || remoteActive()) return reply({ ok: false, error: 'Finish your current game first.' });
+          try {
+            const g = localRt.games.createRivalGame(inc.settings.rated ? 'ranked' : 'casual', { ...inc.settings, color: 'random' }, { userId: currentUid!, ip: 'self' }, rv);
+            publish();
+            return reply({ ok: true, gameId: g.id });
+          } catch (e) {
+            return reply({ ok: false, error: (e as Error).message });
+          }
+        }
         if (inc) {
           const peer = peerOf(inc.from);
           if (!peer) return reply({ ok: false, error: 'The challenger went offline.' });
@@ -899,6 +913,86 @@ export function createRouterSocket(local: ClientSocket) {
 
 export const p2pInfo = () => ({ players: lobbyPlayers().length, connected: !!room });
 
+// ------------------------------------------------------------------------------------------------ AI rivals in the lobby
+
+/** AI rivals currently shown as online (rotates through the day). */
+export function rivalLobby() {
+  const busy = new Set<string>();
+  const g = currentUid ? localRt?.games.activeGameOf(currentUid) : null;
+  if (g) for (const s of ['w', 'b'] as const) { const seat = (g.seats as any)[s]; if (seat.kind === 'bot' && seat.rival) busy.add(seat.rival.id); }
+  return onlineRivals().map(({ rival, status }) => {
+    const pr = rivalProfile(rival);
+    return { pid: rival.id, name: rival.name, icon: rival.icon, level: pr.level, rating: pr.rating, status: busy.has(rival.id) ? ('playing' as const) : status };
+  });
+}
+
+function rivalPresenceProfile(r: Rival) {
+  const pr = rivalProfile(r);
+  return { id: r.id, username: r.name, level: pr.level, xp: pr.xp, icon: r.icon, card: r.card, createdAt: pr.createdAt, rating: pr.rating, peakRating: pr.rating + 40, online: true, playing: false };
+}
+
+/** The player challenged a rival: after a short think it accepts (starting the game) or declines. */
+function challengeRival(rid: string, s: MatchSettings, code: string) {
+  const rv = findRival(rid);
+  const entry = rivalLobby().find((p) => p.pid === rid);
+  if (!rv || !entry) return { ok: false, error: 'That player is not online.' };
+  if (entry.status === 'playing') return { ok: false, error: `${rv.name} is in a game right now.` };
+  outgoingChallenges.set(code, { to: rid, settings: s });
+  const myRating = myPresence()?.rating ?? 1000;
+  // most challenges get accepted; strong players are pickier about rated games against much lower players
+  let p = 0.72;
+  if (s.rated && rivalRating(rv) - myRating > 300) p -= 0.25;
+  if (s.tc.initial >= 1800) p -= 0.2; // long games
+  const accept = Math.random() < p;
+  setTimeout(() => {
+    if (!outgoingChallenges.has(code)) return; // cancelled
+    outgoingChallenges.delete(code);
+    if (!accept || localRt.games.activeGameOf(currentUid!) || remoteActive()) {
+      facade?.fire('challenge:removed', { id: code, declined: true });
+      return;
+    }
+    try {
+      localRt.games.createRivalGame(s.rated ? 'ranked' : 'casual', s, { userId: currentUid!, ip: 'self' }, rv);
+      publish();
+    } catch (e) {
+      facade?.fire('challenge:removed', { id: code, declined: true });
+      console.error('[p2p] rival accept failed', e);
+    }
+  }, 2500 + Math.random() * 6000);
+  return { ok: true, challenge: { id: code, code, from: currentUid, to: rid, settings: s, createdAt: Date.now() } };
+}
+
+let lastRivalChallenge = Date.now();
+/** Now and then an online rival near the player's level challenges them (only while idle). */
+function rivalChallengeTick(force = false) {
+  if (!currentUid || !facade || mySeek || document.visibilityState !== 'visible') return;
+  if (localRt.games.activeGameOf(currentUid) || remoteActive() || location.pathname.includes('/game/')) return;
+  if ([...incomingChallenges.values()].some((c) => c.from.startsWith('rival_'))) return;
+  if (!force && (Date.now() - lastRivalChallenge < 150_000 || Math.random() > 0.35)) return;
+  const myRating = myPresence()?.rating ?? 1000;
+  const pool = rivalLobby().filter((p) => p.status === 'online' && Math.abs(p.rating - myRating) <= 300);
+  if (!pool.length) return;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const rv = findRival(pick.pid)!;
+  const preset = presetById(['3+2', '5+0', '5+3', '10+0'][Math.floor(Math.random() * 4)]) ?? presetById('5+0')!;
+  const settings: MatchSettings = { tc: { initial: preset.initial, increment: preset.increment }, rated: Math.random() < 0.5, takebacks: false, assistance: false, spectators: true, color: 'random' };
+  const id = 'R' + Math.random().toString(36).slice(2, 7).toUpperCase();
+  lastRivalChallenge = Date.now();
+  incomingChallenges.set(id, { from: rv.id, settings });
+  facade.fire('challenge:incoming', { challenge: { id, code: id, from: rv.id, to: currentUid, settings, createdAt: Date.now() }, from: rivalPresenceProfile(rv) });
+  setTimeout(() => {
+    if (incomingChallenges.delete(id)) facade?.fire('challenge:removed', { id });
+  }, 60_000);
+}
+(globalThis as any).__dcRivalChallenge = () => rivalChallengeTick(true); // automated tests
+setInterval(() => {
+  try {
+    rivalChallengeTick();
+  } catch (e) {
+    console.error(e);
+  }
+}, 30_000);
+
 // ------------------------------------------------------------------------------------------------ AI rivals on the leaderboard
 
 function rivalEntries(type: string) {
@@ -1021,7 +1115,7 @@ function rivalApi(r: (typeof RIVALS)[number], sub: string): { status: number; js
   if (sub.startsWith('/games')) return { status: 200, json: { games: [], more: false } };
   if (sub.startsWith('/rating-history')) return { status: 200, json: { history: [] } };
   const ratings = Object.fromEntries(Object.entries(pr.ratings).map(([c, v]) => [c, { user_id: r.id, category: c, rating: v.rating, peak: v.rating + 40, games: v.games, wins: Math.round(v.games * 0.5), losses: Math.round(v.games * 0.43), draws: Math.round(v.games * 0.07) }]));
-  const status = (r.base + Math.floor(Date.now() / 600000)) % 3 === 0 ? 'online' : 'offline';
+  const status = rivalLobby().find((p) => p.pid === r.id)?.status ?? 'offline';
   return {
     status: 200,
     json: {
