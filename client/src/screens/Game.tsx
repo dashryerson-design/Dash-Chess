@@ -252,7 +252,7 @@ export default function Game() {
           void emit('game:assist', { gameId: id }).then((r) => {
             if (!r.ok) return;
             setHacker(true);
-            toast({ kind: 'success', title: 'Hacker mode on', body: 'Only you can see this. This match will not count for rating.' }, 2500);
+            
           });
         }
         return;
@@ -376,20 +376,6 @@ export default function Game() {
           </div>
         )}
 
-        {hacker && (
-          <div className="panel" style={{ padding: 10, borderColor: 'rgba(60,255,140,0.45)', boxShadow: '0 0 18px rgba(60,255,140,0.12)' }}>
-            <div className="tiny" style={{ color: '#5dff9e', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 6 }}>HACKER MODE · STYLE</div>
-            <div className="seg" style={{ gap: 4 }}>
-              {HACK_STYLES.map((s) => (
-                <button key={s.id} className={hackStyle === s.id ? 'on' : ''} title={s.desc} style={{ fontSize: '0.72rem', padding: '5px 8px', ...(hackStyle === s.id ? { borderColor: '#3dff8a', background: 'rgba(60,255,140,0.15)' } : {}) }}
-                  onClick={() => { setHackStyle(s.id); try { localStorage.setItem('dc.hackStyle', s.id); } catch { /* ignore */ } }}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <div className="tiny muted" style={{ marginTop: 6 }}>{HACK_STYLES.find((s) => s.id === hackStyle)?.desc}</div>
-          </div>
-        )}
         <div className="panel moves-panel">
           <div className="panel-head" style={{ padding: '10px 14px' }}>
             <h3 className="panel-title">Moves</h3>
@@ -425,6 +411,16 @@ export default function Game() {
         )}
       </div>
 
+      {hacker && (
+        <select
+          aria-label="Suggestion style"
+          value={hackStyle}
+          onChange={(e) => { const v = e.target.value as HackStyle; setHackStyle(v); try { localStorage.setItem('dc.hackStyle', v); } catch { /* ignore */ } }}
+          style={{ position: 'fixed', left: 8, bottom: 8, zIndex: 60, fontSize: 11, padding: '2px 4px', background: 'rgba(10,12,18,0.7)', color: 'var(--text-3)', border: '1px solid var(--line)', borderRadius: 4, opacity: 0.6 }}
+        >
+          {HACK_STYLES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+      )}
       <Confirm open={confirmResign} title="Resign this game?" body="Your opponent will be awarded the win." confirmLabel="Resign" danger onCancel={() => setConfirmResign(false)} onConfirm={() => { setConfirmResign(false); void act('game:resign'); }} />
       {state.status === 'ended' && state.result && (
         <ResultsModal open={showResults} onClose={() => setShowResults(false)} state={state} rewards={rewards} analysisReady={analysisReady} onRematch={rematch} rematchPending={rematchPending} />
