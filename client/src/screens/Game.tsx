@@ -264,7 +264,7 @@ export default function Game() {
     <div className="game-layout">
       <div className="board-col">
         <PlayerBar seat={seat(top)} side={top} clock={clockMs(top)} active={clockActive(top)} receivedAt={snap!.at} fen={liveFen} turn={active && turn === top}
-          right={seat(top).kind === 'bot' && active && turn === top ? <span className="tiny muted hide-xs" style={{ marginRight: 8 }}>thinking…</span> : null} />
+          right={seat(top).kind === 'bot' && !seat(top).id.startsWith('rival_') && active && turn === top ? <span className="tiny muted hide-xs" style={{ marginRight: 8 }}>thinking…</span> : null} />
         <div className="board-wrap" ref={boxRef} style={{ minHeight: mode3d ? 380 : undefined }}>
           <div style={{ position: 'relative', width: boardSize ?? '100%', height: boardSize ?? '100%', maxWidth: '100%' }}>
             <BoardView

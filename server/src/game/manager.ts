@@ -1,5 +1,9 @@
 import {
   BOT_BY_ID,
+  engineForRating,
+  pickRival,
+  rivalProfile,
+  rivalRating,
   PLACEMENT_GAMES,
   categoryOf,
   type GameMode,
@@ -70,6 +74,18 @@ export class GameManager {
     const seatB: Seat = { kind: 'bot', bot };
     const humanWhite = settings.color === 'white' || (settings.color === 'random' && Math.random() < 0.5);
     return this.create('bot', { ...settings, rated: false }, humanWhite ? seatH : seatB, humanWhite ? seatB : seatH);
+  }
+
+  /** Ranked/casual backfill: an AI rival from the leaderboard, engine strength matched to its rating. */
+  createRivalGame(mode: 'ranked' | 'casual', settings: MatchSettings, human: HumanRef): GameRoom {
+    const cat = categoryOf(settings.tc);
+    const seatH = this.humanSeat(human, cat);
+    const rival = pickRival(seatH.rating, cat);
+    const rating = rivalRating(rival, cat);
+    const prof = rivalProfile(rival);
+    const seatB: Seat = { kind: 'bot', bot: engineForRating(rating), rival: { id: rival.id, name: rival.name, rating, icon: rival.icon, card: rival.card, level: prof.level } };
+    const humanWhite = Math.random() < 0.5;
+    return this.create(mode, { ...settings, rated: mode === 'ranked', color: 'random', assistance: false, takebacks: false }, humanWhite ? seatH : seatB, humanWhite ? seatB : seatH);
   }
 
   private create(mode: GameMode, settings: MatchSettings, white: Seat, black: Seat): GameRoom {

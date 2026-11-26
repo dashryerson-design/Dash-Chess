@@ -98,6 +98,28 @@ export function persistGame(db: DB, room: GameRoom): boolean {
         ratedApplied = true;
       }
     }
+    // rated game against an AI rival: only the human's rating changes
+    const rivalSide = (['w', 'b'] as Side[]).find((s) => room.seats[s].kind === 'bot' && (room.seats[s] as any).rival);
+    if (!ratedApplied && room.settings.rated && rivalSide && room.moves.length >= 2) {
+      const hs: Side = rivalSide === 'w' ? 'b' : 'w';
+      const H = room.seats[hs] as Extract<typeof W, { kind: 'human' }>;
+      const rv = (room.seats[rivalSide] as any).rival as { rating: number };
+      const rh = getRatings(db, H.userId)[room.category];
+      const score: 0 | 0.5 | 1 = res.winner === hs ? 1 : res.winner === null ? 0.5 : 0;
+      const ch = ratingChange(rh.rating, rh.games, rv.rating, score);
+      db.prepare('UPDATE ratings SET rating = ?, peak = MAX(peak, ?), games = games + 1, wins = wins + ?, losses = losses + ?, draws = draws + ? WHERE user_id = ? AND category = ?').run(
+        ch.after, ch.after, score === 1 ? 1 : 0, score === 0 ? 1 : 0, score === 0.5 ? 1 : 0, H.userId, room.category);
+      db.prepare('INSERT INTO rating_history (user_id, category, game_id, rating_before, rating_after, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(H.userId, room.category, room.id, ch.before, ch.after, room.endedAt);
+      const ov = overallFor(db, H.userId).rating;
+      db.prepare(
+        `INSERT INTO season_stats (user_id, season, games, wins, peak, current) VALUES (?, ?, 1, ?, ?, ?)
+         ON CONFLICT(user_id, season) DO UPDATE SET games = games + 1, wins = wins + excluded.wins, peak = MAX(peak, excluded.peak), current = excluded.current`,
+      ).run(H.userId, season, score === 1 ? 1 : 0, ov, ov);
+      checkDivisionUnlocks(db, H.userId);
+      delta[hs] = ch.delta;
+      after[hs] = ch.after;
+      ratedApplied = true;
+    }
     if (ratedApplied) {
       res.ratingDelta = delta;
       res.ratingAfter = after;
@@ -118,8 +140,8 @@ export function persistGame(db: DB, room: GameRoom): boolean {
       JSON.stringify({ ...room.settings, hintsUsed: room.hintsUsed, takebacksUsed: room.takebacksUsed }),
       W.kind === 'human' ? W.userId : null,
       B.kind === 'human' ? B.userId : null,
-      W.kind === 'bot' ? W.bot.id : null,
-      B.kind === 'bot' ? B.bot.id : null,
+      W.kind === 'bot' ? W.rival?.id ?? W.bot.id : null,
+      B.kind === 'bot' ? B.rival?.id ?? B.bot.id : null,
       room.seatInfo('w').name,
       room.seatInfo('b').name,
       room.seatInfo('w').rating,
@@ -150,7 +172,7 @@ export function persistGame(db: DB, room: GameRoom): boolean {
       if (seat.kind !== 'human') continue;
       const opp = room.seats[s === 'w' ? 'b' : 'w'];
       const score = res.winner === s ? 1 : res.winner === null ? 0.5 : 0;
-      pg.run(room.id, seat.userId, s, score, opp.kind === 'human' ? opp.userId : null, opp.kind === 'bot' ? opp.bot.id : null, room.endedAt);
+      pg.run(room.id, seat.userId, s, score, opp.kind === 'human' ? opp.userId : null, opp.kind === 'bot' ? opp.rival?.id ?? opp.bot.id : null, room.endedAt);
     }
 
     // Opening explorer statistics (first 20 plies)

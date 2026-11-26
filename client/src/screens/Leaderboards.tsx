@@ -12,7 +12,7 @@ interface Entry { position: number; id: string; username: string; icon: string; 
 
 export default function Leaderboards() {
   const [type, setType] = useState<Board>('overall');
-  const [data, setData] = useState<{ entries: Entry[]; myPosition: number | null; season?: { label: string; endsAt: number }; p2p?: boolean; cloud?: boolean } | null>(null);
+  const [data, setData] = useState<{ entries: Entry[]; myPosition: number | null; season?: { label: string; endsAt: number }; p2p?: boolean; cloud?: boolean; withRivals?: boolean } | null>(null);
   const me = useSession((s) => s.me);
   const navigate = useNavigate();
 
@@ -82,6 +82,7 @@ export default function Leaderboards() {
               </tbody>
             </table>
           </div>
+          {data.withRivals && <div className="tiny muted" style={{ marginTop: 10 }}>Includes AI rivals.</div>}
         </>
       )}
     </div>

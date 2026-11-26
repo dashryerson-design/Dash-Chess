@@ -7,3 +7,4 @@ export * from './bots';
 export * from './classification';
 export * from './achievements';
 export * from './types';
+export * from './rivals';

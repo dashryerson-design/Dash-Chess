@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Chess } from 'chess.js';
-import { Bot, WifiOff } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 import { CLASS_META, type MoveRating, type SeatInfo, type MoveRecord } from '@dc/shared';
 import { PlayerIcon } from '../cosmetics/icons';
 import { pieceUrl } from '../cosmetics/pieces';
@@ -81,12 +81,12 @@ export function PlayerBar({ seat, side, clock, active, receivedAt, fen, turn, ri
         <div className="grow" style={{ minWidth: 0 }}>
           <div className="pb-name">
             <span className="ellipsis">{seat.name}</span>
-            {seat.kind === 'bot' && <Bot size={14} style={{ color: 'var(--text-2)' }} />}
+            {seat.kind === 'bot' && <span title="AI opponent" style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', border: '1px solid var(--line-2)', borderRadius: 3, padding: '0 3px', lineHeight: '13px' }}>AI</span>}
             {!seat.connected && <WifiOff size={14} style={{ color: 'var(--bad)' }} />}
             <span style={{ width: 10, height: 10, borderRadius: 2, background: side === 'w' ? '#eee' : '#222', border: '1px solid #666', flex: 'none' }} />
           </div>
           <div className="pb-sub">
-            {seat.rating !== null && (seat.kind === 'human' ? <Division rating={seat.rating} size={14} showRating provisional={seat.provisional} /> : <span className="mono">~{seat.rating}</span>)}
+            {seat.rating !== null && (seat.kind === 'human' || seat.id.startsWith('rival_') ? <Division rating={seat.rating} size={14} showRating provisional={seat.provisional} /> : <span className="mono">~{seat.rating}</span>)}
             {seat.level !== null && <span className="muted">LV {seat.level}</span>}
             <Captured fen={fen} side={side} pieceSet={pieceSet} />
           </div>

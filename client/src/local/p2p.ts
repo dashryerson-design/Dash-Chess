@@ -9,7 +9,7 @@
  */
 import { joinRoom, getRelaySockets, defaultRelayUrls } from 'trystero';
 import { Chess } from 'chess.js';
-import { presetById, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
+import { presetById, RIVALS, RIVAL_BY_ID, rivalProfile, rivalRating, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
 import { ClientSocket, type Server, type ServerSocket } from './io';
 import { localDb, localRt, localApi } from './server';
 import { createSession } from './auth';
@@ -347,7 +347,23 @@ function matchTick() {
   const candidates = lobbyPlayers().filter((p) => p.seek && p.status === 'searching' && compatible(mySeek!, p.seek));
   candidates.sort((x, y) => Math.abs(x.seek!.rating - mySeek!.rating) - Math.abs(y.seek!.rating - mySeek!.rating));
   const best = candidates[0];
-  if (!best) return emitQueue();
+  if (!best) {
+    // nobody suitable for 15s: play an AI rival of similar rating
+    if (Date.now() - mySeek.since > 15_000 && !localRt.games.activeGameOf(currentUid!)) {
+      const preset = presetById(mySeek.tc) ?? presetById('5+0')!;
+      const mode = mySeek.mode === 'ranked' ? 'ranked' : 'casual';
+      mySeek = null;
+      emitQueue();
+      try {
+        localRt.games.createRivalGame(mode, { tc: { initial: preset.initial, increment: preset.increment }, rated: mode === 'ranked', takebacks: false, assistance: false, spectators: true, color: 'random' }, { userId: currentUid!, ip: 'self' });
+      } catch (e) {
+        console.error('[p2p] rival game failed', e);
+      }
+      publish();
+      return;
+    }
+    return emitQueue();
+  }
   // the player with the smaller id hosts and makes the offer
   if (currentUid! < best.pid) {
     const peer = peerOf(best.pid);
@@ -860,6 +876,22 @@ export function createRouterSocket(local: ClientSocket) {
 
 export const p2pInfo = () => ({ players: lobbyPlayers().length, connected: !!room });
 
+// ------------------------------------------------------------------------------------------------ AI rivals on the leaderboard
+
+function rivalEntries(type: string) {
+  return RIVALS.map((r) => {
+    const pr = rivalProfile(r);
+    const cat = (['bullet', 'blitz', 'rapid', 'classical'] as const).find((c) => c === type);
+    const value = type === 'level' ? pr.xp : cat ? pr.ratings[cat].rating : pr.rating;
+    return { id: r.id, username: r.name, icon: r.icon, card: r.card, level: pr.level, rating: cat ? pr.ratings[cat].rating : pr.rating, division: '', value };
+  });
+}
+function mergeBoard(type: string, entries: { id: string; value: number }[] & any[]) {
+  const ids = new Set(entries.map((e) => e.id));
+  const merged = [...entries, ...rivalEntries(type).filter((r) => !ids.has(r.id))].sort((a, b) => b.value - a.value).slice(0, 100);
+  return merged.map((e, i) => ({ ...e, position: i + 1 }));
+}
+
 // ------------------------------------------------------------------------------------------------ API overrides
 
 /** Intercepts REST calls whose data lives with other players. Returns null to fall through to the local server. */
@@ -901,6 +933,8 @@ export async function apiOverride(method: string, url: string, body: any): Promi
   const um = /^\/api\/users\/([^/]+)(\/.*)?$/.exec(path);
   if (method === 'GET' && um && um[1] !== 'search') {
     const name = decodeURIComponent(um[1]);
+    const rv = RIVALS.find((r) => r.name.toLowerCase() === name.toLowerCase() || r.id === name);
+    if (rv) return rivalApi(rv, um[2] ?? '');
     const u = (localDb.prepare('SELECT id, username, password_hash FROM users WHERE username = ? COLLATE NOCASE OR id = ?').get(name, name) as { id: string; username: string; password_hash: string } | undefined) ?? undefined;
     const lp = lobbyPlayers().find((p) => p.pid === u?.id || p.name.toLowerCase() === name.toLowerCase());
     if ((!u || u.password_hash === 'remote') && lp) {
@@ -919,7 +953,10 @@ export async function apiOverride(method: string, url: string, body: any): Promi
     const type = q.get('type') ?? 'overall';
     if (cloudEnabled) {
       const cloud = await cloudLeaderboard(type, currentUid);
-      if (cloud) return { status: 200, json: cloud };
+      if (cloud) {
+        const entries = mergeBoard(type, cloud.entries);
+        return { status: 200, json: { ...cloud, entries, myPosition: entries.find((e) => e.id === currentUid)?.position ?? null, withRivals: true } };
+      }
     }
     const local = (await localApi(method, url)).json;
     const self = myPresence();
@@ -931,7 +968,8 @@ export async function apiOverride(method: string, url: string, body: any): Promi
       .sort((a, b) => value(b) - value(a))
       .slice(0, 100)
       .map((p, i) => ({ position: i + 1, id: p.pid, username: p.name, icon: p.icon, card: p.card, level: p.level, rating: type === 'level' ? p.rating : value(p), division: '', value: value(p) }));
-    return { status: 200, json: { type, entries, myPosition: entries.find((e) => e.id === currentUid)?.position ?? null, season: local?.season, p2p: true } };
+    const all = mergeBoard(type, entries);
+    return { status: 200, json: { type, entries: all, myPosition: all.find((e) => e.id === currentUid)?.position ?? null, season: local?.season, p2p: true, withRivals: true } };
   }
   if (method === 'GET' && path === '/api/games/live') {
     const local = (await localApi(method, url)).json?.games ?? [];
@@ -953,3 +991,25 @@ export async function apiOverride(method: string, url: string, body: any): Promi
   }
   return null;
 }
+
+/** Profile pages for AI rivals (they behave like leaderboard players). */
+function rivalApi(r: (typeof RIVALS)[number], sub: string): { status: number; json: any } {
+  const pr = rivalProfile(r);
+  if (sub.startsWith('/games')) return { status: 200, json: { games: [], more: false } };
+  if (sub.startsWith('/rating-history')) return { status: 200, json: { history: [] } };
+  const ratings = Object.fromEntries(Object.entries(pr.ratings).map(([c, v]) => [c, { user_id: r.id, category: c, rating: v.rating, peak: v.rating + 40, games: v.games, wins: Math.round(v.games * 0.5), losses: Math.round(v.games * 0.43), draws: Math.round(v.games * 0.07) }]));
+  const status = (r.base + Math.floor(Date.now() / 600000)) % 3 === 0 ? 'online' : 'offline';
+  return {
+    status: 200,
+    json: {
+      profile: { id: r.id, username: r.name, level: pr.level, xp: pr.xp, icon: r.icon, card: r.card, createdAt: pr.createdAt, rating: pr.rating, peakRating: pr.rating + 40, online: status === 'online', playing: false },
+      ratings,
+      stats: { games: pr.games, wins: pr.wins, losses: pr.losses, draws: pr.draws, winRate: Math.round((pr.wins / pr.games) * 1000) / 10, currentStreak: 0, bestStreak: 4 + (r.base % 7), checkmates: Math.round(pr.wins * 0.4), averageAccuracy: Math.round(55 + (r.base - 600) / 60), bestAccuracy: null, classes: { incredible: 0, great: 0, good: 0, decent: 0, okay: 0, bad: 0, blunder: 0 }, favouriteOpening: null, openings: [], averageDurationMs: 540000, mostPlayedCategory: 'blitz', categories: [], botGames: 0, botWins: 0, onlineGames: pr.games, onlineWins: pr.wins, rankedWins: Math.round(pr.wins * 0.7), bots: [], puzzleRating: pr.rating, puzzlesSolved: 0, accuracyTrend: [] },
+      achievements: [],
+      status,
+      activeGameId: null,
+    },
+  };
+}
+void RIVAL_BY_ID;
+void rivalRating;

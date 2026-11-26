@@ -128,6 +128,18 @@ export class Matchmaker {
         console.error('[mm] could not create game', e);
       }
     }
+    // nobody suitable for 15s: play an AI rival of similar rating
+    for (const e of [...this.queue.values()]) {
+      if (Date.now() - e.since < 15_000) continue;
+      this.queue.delete(e.userId);
+      const p = presetById(e.tcId) ?? TIME_PRESETS[4];
+      const settings: MatchSettings = { tc: { initial: p.initial, increment: p.increment }, rated: e.mode === 'ranked', takebacks: false, assistance: false, spectators: true, color: 'random' };
+      try {
+        this.onMatch(this.games.createRivalGame(e.mode === 'ranked' ? 'ranked' : 'casual', settings, { userId: e.userId, ip: e.ip }));
+      } catch (err) {
+        console.error('[mm] rival game failed', err);
+      }
+    }
     for (const e of this.queue.values()) this.onUpdate(e.userId);
   }
 }

@@ -32,6 +32,8 @@ export interface HumanSeat {
 export interface BotSeat {
   kind: 'bot';
   bot: BotProfile;
+  /** AI rival identity (leaderboard player) playing with this engine personality */
+  rival?: { id: string; name: string; rating: number; icon: string; card: string; level: number };
 }
 export type Seat = HumanSeat | BotSeat;
 
@@ -480,6 +482,8 @@ export class GameRoom extends EventEmitter {
   // ------------------------------------------------------------------ serialization
   seatInfo(side: Side): SeatInfo {
     const s = this.seats[side];
+    if (s.kind === 'bot' && s.rival)
+      return { kind: 'bot', id: s.rival.id, name: s.rival.name, icon: s.rival.icon, card: s.rival.card, level: s.rival.level, rating: s.rival.rating, provisional: false, connected: true };
     if (s.kind === 'bot')
       return {
         kind: 'bot',
