@@ -81,7 +81,6 @@ export function PlayerBar({ seat, side, clock, active, receivedAt, fen, turn, ri
         <div className="grow" style={{ minWidth: 0 }}>
           <div className="pb-name">
             <span className="ellipsis">{seat.name}</span>
-            {seat.kind === 'bot' && <span title="AI opponent" style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-3)', border: '1px solid var(--line-2)', borderRadius: 3, padding: '0 3px', lineHeight: '13px' }}>AI</span>}
             {!seat.connected && <WifiOff size={14} style={{ color: 'var(--bad)' }} />}
             <span style={{ width: 10, height: 10, borderRadius: 2, background: side === 'w' ? '#eee' : '#222', border: '1px solid #666', flex: 'none' }} />
           </div>
