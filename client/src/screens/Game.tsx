@@ -16,6 +16,7 @@ import { moveSound, play } from '../lib/sound';
 import { useElementSize } from '../lib/useSize';
 import { ViewToggle } from '../components/ViewToggle';
 import { isAdmin } from '../lib/admin';
+import { HACK_STYLES, pickStyledMove, type HackStyle } from '../lib/hackerStyles';
 import { CLASS_META } from '@dc/shared';
 
 interface Snapshot {
@@ -45,6 +46,7 @@ export default function Game() {
   const [rematchPending, setRematchPending] = useState(false);
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [hacker, setHacker] = useState(false);
+  const [hackStyle, setHackStyle] = useState<HackStyle>(() => (localStorage.getItem('dc.hackStyle') as HackStyle) || 'goat');
   const [ghost, setGhost] = useState<{ from: Square; to: Square; piece: string } | null>(null);
   const sixes = useRef<number[]>([]);
   const lastSoundPly = useRef<number>(-1);
@@ -122,8 +124,11 @@ export default function Game() {
     let alive = true;
     const fen = state.fen;
     void import('../engine/clientEngine').then(({ engine }) =>
-      engine.bestMove(fen, { depth: 15, movetime: 1500 }).then((uci) => {
-        if (!alive || !uci) return;
+      engine.analyse(fen, { depth: 14, multipv: hackStyle === 'goat' ? 1 : 6 }, (lines, done) => {
+        if (!alive || !done) return;
+        const pick = pickStyledMove(fen, lines, hackStyle);
+        if (!pick) return;
+        const uci = pick.uci;
         const pc = new Chess(fen).get(uci.slice(0, 2) as Square);
         if (pc) setGhost({ from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square, piece: pc.color + (uci[4] ?? pc.type) });
       }),
@@ -131,7 +136,7 @@ export default function Game() {
     return () => {
       alive = false;
     };
-  }, [hacker, state?.fen, state?.status, state?.yourColor, cursor]);
+  }, [hacker, hackStyle, state?.fen, state?.status, state?.yourColor, cursor]);
 
   // reset per-game UI state when navigating between games (rematch)
   useEffect(() => {
@@ -371,6 +376,20 @@ export default function Game() {
           </div>
         )}
 
+        {hacker && (
+          <div className="panel" style={{ padding: 10, borderColor: 'rgba(60,255,140,0.45)', boxShadow: '0 0 18px rgba(60,255,140,0.12)' }}>
+            <div className="tiny" style={{ color: '#5dff9e', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 6 }}>HACKER MODE · STYLE</div>
+            <div className="seg" style={{ gap: 4 }}>
+              {HACK_STYLES.map((s) => (
+                <button key={s.id} className={hackStyle === s.id ? 'on' : ''} title={s.desc} style={{ fontSize: '0.72rem', padding: '5px 8px', ...(hackStyle === s.id ? { borderColor: '#3dff8a', background: 'rgba(60,255,140,0.15)' } : {}) }}
+                  onClick={() => { setHackStyle(s.id); try { localStorage.setItem('dc.hackStyle', s.id); } catch { /* ignore */ } }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div className="tiny muted" style={{ marginTop: 6 }}>{HACK_STYLES.find((s) => s.id === hackStyle)?.desc}</div>
+          </div>
+        )}
         <div className="panel moves-panel">
           <div className="panel-head" style={{ padding: '10px 14px' }}>
             <h3 className="panel-title">Moves</h3>
