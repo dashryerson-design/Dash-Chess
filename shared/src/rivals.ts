@@ -12,7 +12,14 @@ export interface Rival {
   base: number;
   icon: string;
   card: string;
+  /** Generated on demand to fill a ranked queue: rating stays exactly at `base`. */
+  fixed?: boolean;
 }
+
+/** Ranked search falls back to an AI rival after this long without a human opponent. */
+export const RIVAL_WAIT_MS = 10_000;
+/** AI rivals are always within this many DC rating points of the player. */
+export const RIVAL_WINDOW = 200;
 
 const NAMES = [
   'BobyCHess', 'ImAGM', 'Goth4m_Chaess', 'opxes', 'jdlk', 'KnightRider77', 'pawnstorm_99', 'xXCheckmateXx', 'qwrtz', 'LadyBishop',
@@ -48,6 +55,7 @@ const noise = (r: Rival, k: string, d: number) => ((hash(`${r.id}|${k}|${d}`) % 
 
 /** Current rating (overall or per category); a slow random walk so the board changes over days. */
 export function rivalRating(r: Rival, cat?: TimeCategory, d = day()): number {
+  if (r.fixed) return r.base;
   let drift = 0;
   for (let k = 0; k < 14; k++) drift += noise(r, 'walk', d - k) * 9;
   const catOffset = cat ? Math.round(noise(r, cat, 0) * 90) : 0;
@@ -75,8 +83,56 @@ export function engineForRating(rating: number): BotProfile {
   return best;
 }
 
-/** Picks the rival closest to a player's rating (with a little variety). */
+const PREFIX = [
+  'Shadow', 'Neon', 'Frost', 'Iron', 'Void', 'Crimson', 'Silent', 'Turbo', 'Cosmic', 'Rogue', 'Hyper', 'Storm', 'Lunar', 'Blaze',
+  'Quantum', 'Venom', 'Pixel', 'Night', 'Atomic', 'Ghost', 'Savage', 'Solar', 'Cyber', 'Phantom',
+];
+const NOUN = [
+  'Knight', 'Rook', 'Bishop', 'Pawn', 'Gambit', 'Castle', 'Fork', 'Mate', 'Tempo', 'Fianchetto', 'Zugzwang', 'Sac', 'Outpost',
+  'Blitzer', 'Tactician', 'Queen', 'King', 'Pin', 'Skewer', 'Endgame',
+];
+const STYLE = [(a: string, b: string, n: number) => `${a}${b}${n}`, (a: string, b: string) => `${a}_${b}`, (a: string, b: string, n: number) => `${a.toLowerCase()}${b.toLowerCase()}_${n}`, (a: string, b: string) => `x${a}${b}x`, (a: string, b: string, n: number) => `${b}${a}${n}`];
+
+const generated = new Map<string, Rival>();
+
+/** Creates a brand new rival with a fresh name at exactly `rating` (used when no roster name is close enough). */
+export function generateRival(rating: number, seed = Math.random()): Rival {
+  const taken = new Set(RIVALS.map((r) => r.name.toLowerCase()));
+  for (let k = 0; ; k++) {
+    const h = hash(`${seed}|${k}`);
+    const name = STYLE[h % STYLE.length](PREFIX[(h >>> 4) % PREFIX.length], NOUN[(h >>> 10) % NOUN.length], 1 + ((h >>> 16) % 99));
+    if (taken.has(name.toLowerCase()) && k < 50) continue;
+    const base = Math.max(400, Math.round(rating));
+    const r: Rival = { id: `rival_x${base}_${name}`, name, base, icon: ICONS[h % ICONS.length], card: CARDS[(h >>> 8) % CARDS.length], fixed: true };
+    generated.set(r.id, r);
+    generated.set(name.toLowerCase(), r);
+    return r;
+  }
+}
+
+/** Finds a rival (roster or generated) by id or name. Generated ids encode their rating, so they survive reloads. */
+export function findRival(key: string): Rival | undefined {
+  const k = key.toLowerCase();
+  const hit = RIVAL_BY_ID[key] ?? RIVALS.find((r) => r.name.toLowerCase() === k) ?? generated.get(key) ?? generated.get(k);
+  if (hit) return hit;
+  const m = /^rival_x(\d+)_(.+)$/.exec(key);
+  if (!m) return undefined;
+  const h = hash(m[2]);
+  const r: Rival = { id: key, name: m[2], base: Number(m[1]), icon: ICONS[h % ICONS.length], card: CARDS[(h >>> 8) % CARDS.length], fixed: true };
+  generated.set(key, r);
+  generated.set(m[2].toLowerCase(), r);
+  return r;
+}
+
+/**
+ * Picks an opponent for a player: a leaderboard rival within RIVAL_WINDOW of their rating (a random one
+ * of the closest few, for variety), or a newly generated rival near their rating if none is close enough.
+ */
 export function pickRival(rating: number, cat: TimeCategory, seed = Math.random()): Rival {
-  const sorted = [...RIVALS].sort((a, b) => Math.abs(rivalRating(a, cat) - rating) - Math.abs(rivalRating(b, cat) - rating));
-  return sorted[Math.floor(seed * Math.min(4, sorted.length))];
+  const near = RIVALS.map((r) => ({ r, d: Math.abs(rivalRating(r, cat) - rating) }))
+    .filter((x) => x.d <= RIVAL_WINDOW)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 6);
+  if (near.length) return near[Math.floor(seed * near.length)].r;
+  return generateRival(rating + Math.round((seed * 2 - 1) * 120), seed);
 }

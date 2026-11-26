@@ -1,4 +1,4 @@
-import { TIME_PRESETS, categoryOf, presetById, type MatchSettings, type QueueStatus, type TimeControl } from '@dc/shared';
+import { RIVAL_WAIT_MS, TIME_PRESETS, categoryOf, presetById, type MatchSettings, type QueueStatus, type TimeControl } from '@dc/shared';
 import type { DB } from './db';
 import type { GameManager } from './game/manager';
 import { getRatings } from './users';
@@ -128,9 +128,9 @@ export class Matchmaker {
         console.error('[mm] could not create game', e);
       }
     }
-    // nobody suitable for 15s: play an AI rival of similar rating
+    // nobody suitable for 10s: play an AI rival within 200 DC rating
     for (const e of [...this.queue.values()]) {
-      if (Date.now() - e.since < 15_000) continue;
+      if (Date.now() - e.since < RIVAL_WAIT_MS) continue;
       this.queue.delete(e.userId);
       const p = presetById(e.tcId) ?? TIME_PRESETS[4];
       const settings: MatchSettings = { tc: { initial: p.initial, increment: p.increment }, rated: e.mode === 'ranked', takebacks: false, assistance: false, spectators: true, color: 'random' };

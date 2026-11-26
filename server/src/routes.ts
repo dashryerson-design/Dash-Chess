@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Chess } from 'chess.js';
 import {
   ACHIEVEMENTS,
-  RIVAL_BY_ID,
+  findRival,
   BOTS,
   COSMETICS,
   COSMETIC_BY_ID,
@@ -226,7 +226,7 @@ export function registerRoutes(app: FastifyInstance, db: DB, rt: Realtime) {
       .all(u.id, limit + 1, offset) as any[];
     const iconCache = new Map<string, string>();
     const iconOf = (id: string | null, bot: string | null) => {
-      if (bot) return RIVAL_BY_ID[bot]?.icon ?? `bot.${bot}`;
+      if (bot) return findRival(bot)?.icon ?? `bot.${bot}`;
       if (!id) return 'icon.pawn';
       if (!iconCache.has(id)) {
         const uu = getUser(db, id);
@@ -285,8 +285,8 @@ export function registerRoutes(app: FastifyInstance, db: DB, rt: Realtime) {
         analysis: g.analysis ? JSON.parse(g.analysis) : null,
       },
       icons: {
-        w: g.white_id ? equippedOf(getUser(db, g.white_id)!).icon : RIVAL_BY_ID[g.white_bot]?.icon ?? `bot.${g.white_bot}`,
-        b: g.black_id ? equippedOf(getUser(db, g.black_id)!).icon : RIVAL_BY_ID[g.black_bot]?.icon ?? `bot.${g.black_bot}`,
+        w: g.white_id ? equippedOf(getUser(db, g.white_id)!).icon : findRival(g.white_bot)?.icon ?? `bot.${g.white_bot}`,
+        b: g.black_id ? equippedOf(getUser(db, g.black_id)!).icon : findRival(g.black_bot)?.icon ?? `bot.${g.black_bot}`,
       },
       myRewards: mine?.rewards ? JSON.parse(mine.rewards) : null,
       pending: mine ? !mine.rewarded : false,

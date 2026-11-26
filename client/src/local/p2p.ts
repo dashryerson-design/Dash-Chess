@@ -9,7 +9,7 @@
  */
 import { joinRoom, getRelaySockets, defaultRelayUrls } from 'trystero';
 import { Chess } from 'chess.js';
-import { presetById, RIVALS, RIVAL_BY_ID, rivalProfile, rivalRating, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
+import { presetById, RIVALS, RIVAL_BY_ID, RIVAL_WAIT_MS, findRival, rivalProfile, rivalRating, type GameState, type MatchSettings, type TimeCategory, TIME_CATEGORIES, categoryOf, PLACEMENT_GAMES } from '@dc/shared';
 import { ClientSocket, type Server, type ServerSocket } from './io';
 import { localDb, localRt, localApi } from './server';
 import { createSession } from './auth';
@@ -366,8 +366,8 @@ function matchTick() {
   candidates.sort((x, y) => Math.abs(x.seek!.rating - mySeek!.rating) - Math.abs(y.seek!.rating - mySeek!.rating));
   const best = candidates[0];
   if (!best) {
-    // nobody suitable for 15s: play an AI rival of similar rating
-    if (Date.now() - mySeek.since > 15_000 && !localRt.games.activeGameOf(currentUid!)) {
+    // nobody suitable for 10s: play an AI rival within 200 DC rating
+    if (Date.now() - mySeek.since >= RIVAL_WAIT_MS && !localRt.games.activeGameOf(currentUid!)) {
       const preset = presetById(mySeek.tc) ?? presetById('5+0')!;
       const mode = mySeek.mode === 'ranked' ? 'ranked' : 'casual';
       mySeek = null;
@@ -658,6 +658,8 @@ export class RouterSocket {
         if (!preset) return reply({ ok: false, error: 'Unknown time control.' });
         const rating = getRatings(localDb, currentUid!)[preset.category].rating;
         mySeek = { mode: payload.mode === 'ranked' ? 'ranked' : payload.mode === 'quick' ? 'quick' : 'casual', tc, rating, since: Date.now() };
+        const seek = mySeek;
+        setTimeout(() => mySeek === seek && matchTick(), RIVAL_WAIT_MS + 30); // AI rival exactly on time
         publish();
         setTimeout(emitQueue, 0);
         const status = { searching: true, mode: mySeek.mode === 'ranked' ? 'ranked' : 'casual', tc: { initial: preset.initial, increment: preset.increment }, since: mySeek.since, range: null, playersInQueue: 1 };
@@ -954,7 +956,7 @@ export async function apiOverride(method: string, url: string, body: any): Promi
   const um = /^\/api\/users\/([^/]+)(\/.*)?$/.exec(path);
   if (method === 'GET' && um && um[1] !== 'search') {
     const name = decodeURIComponent(um[1]);
-    const rv = RIVALS.find((r) => r.name.toLowerCase() === name.toLowerCase() || r.id === name);
+    const rv = findRival(name);
     if (rv) return rivalApi(rv, um[2] ?? '');
     const u = (localDb.prepare('SELECT id, username, password_hash FROM users WHERE username = ? COLLATE NOCASE OR id = ?').get(name, name) as { id: string; username: string; password_hash: string } | undefined) ?? undefined;
     const lp = lobbyPlayers().find((p) => p.pid === u?.id || p.name.toLowerCase() === name.toLowerCase());
