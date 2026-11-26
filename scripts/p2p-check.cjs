@@ -102,6 +102,7 @@ async function status(p) {
   log('PASS game ended');
   // global leaderboard (Supabase): both players should be listed once their stats sync
   await a.waitForTimeout(25000);
+  await a.keyboard.press('Escape');
   await a.click('.sidebar >> text=Leaderboards');
   await a.waitForTimeout(4000);
   const lb = await a.textContent('.page');
