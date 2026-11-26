@@ -25,7 +25,7 @@ async function status(p) {
   const b = await (await browser.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
   for (const [n, p] of [['A', a], ['B', b]]) {
     p.on('pageerror', (e) => log(n, 'pageerror', e.message));
-    p.on('console', (m) => /p2p|trystero|error/i.test(m.text()) && !/WebSocket connection/.test(m.text()) && log(n, 'console', m.text().slice(0, 200)));
+    p.on('console', (m) => /p2p|trystero|error|cloud/i.test(m.text()) && !/WebSocket connection/.test(m.text()) && log(n, 'console', m.text().slice(0, 200)));
   }
   const sfx = String(Date.now()).slice(-5);
   const nameA = 'ciA' + sfx, nameB = 'ciB' + sfx;
@@ -100,6 +100,14 @@ async function status(p) {
   await K.click('.modal button:has-text("Resign")').catch(() => {});
   await W.waitForSelector('.modal', { timeout: 30000 });
   log('PASS game ended');
+  // global leaderboard (Supabase): both players should be listed once their stats sync
+  await a.waitForTimeout(25000);
+  await a.click('.sidebar >> text=Leaderboards');
+  await a.waitForTimeout(4000);
+  const lb = await a.textContent('.page');
+  log('leaderboard subtitle:', (await a.textContent('.page-sub')) ?? '');
+  log('leaderboard has both players:', lb.includes(nameA) && lb.includes(nameB));
+  await a.screenshot({ path: `${out}/leaderboard.png` });
   await browser.close();
 })().catch(async (e) => {
   log('FAIL', e.message);
