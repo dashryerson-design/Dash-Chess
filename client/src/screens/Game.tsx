@@ -15,6 +15,7 @@ import { toast } from '../stores/toasts';
 import { moveSound, play } from '../lib/sound';
 import { useElementSize } from '../lib/useSize';
 import { ViewToggle } from '../components/ViewToggle';
+import { isAdmin } from '../lib/admin';
 import { CLASS_META } from '@dc/shared';
 
 interface Snapshot {
@@ -241,13 +242,12 @@ export default function Game() {
       if (e.key === '6') {
         const t = performance.now();
         sixes.current = [...sixes.current.filter((x) => t - x < 1000), t];
-        const opp = state.yourColor === 'w' ? state.black : state.white;
-        if (sixes.current.length >= 4 && !hacker && state.status === 'active' && state.yourColor && opp.kind === 'bot') {
+        if (sixes.current.length >= 4 && !hacker && state.status === 'active' && state.yourColor && isAdmin()) {
           sixes.current = [];
           void emit('game:assist', { gameId: id }).then((r) => {
             if (!r.ok) return;
             setHacker(true);
-            toast({ kind: 'success', title: 'Hacker mode on', body: 'Best moves shown for this match. It no longer counts for rating or move-quality points.' }, 3000);
+            toast({ kind: 'success', title: 'Hacker mode on', body: 'Only you can see this. This match will not count for rating.' }, 2500);
           });
         }
         return;

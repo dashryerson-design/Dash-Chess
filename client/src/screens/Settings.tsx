@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import { toast, toastError } from '../stores/toasts';
 import { play } from '../lib/sound';
 import { fmtDate } from '../lib/format';
+import { isAdmin, lockAdmin, unlockAdmin } from '../lib/admin';
 
 type Tab = 'graphics' | 'gameplay' | 'audio' | 'interface' | 'account';
 
@@ -75,7 +76,28 @@ function Account() {
           <Seg options={[{ value: 'everyone', label: 'Everyone' }, { value: 'friends', label: 'Friends' }, { value: 'nobody', label: 'Nobody' }]} value={me.privacy.allowChallenges} onChange={(v) => save(() => api.patch('/api/me/privacy', { allowChallenges: v }), 'Privacy updated')} />
         </Row>
       </div>
+      <AdminPanel />
       <button className="btn btn-danger" style={{ alignSelf: 'flex-start' }} onClick={() => void logout()}><LogOut /> Log out</button>
+    </div>
+  );
+}
+
+function AdminPanel() {
+  const [admin, setAdmin] = useState(isAdmin());
+  const [pass, setPass] = useState('');
+  return (
+    <div className="panel panel-pad">
+      <h3 className="panel-title" style={{ marginBottom: 8 }}>Admin</h3>
+      {admin ? (
+        <Row t="Admin tools unlocked on this device" d="Testing tools are available in matches.">
+          <button className="btn btn-sm" onClick={() => { lockAdmin(); setAdmin(false); }}>Lock</button>
+        </Row>
+      ) : (
+        <div className="row">
+          <input className="input" type="password" placeholder="Admin passphrase" value={pass} onChange={(e) => setPass(e.target.value)} />
+          <button className="btn" onClick={async () => { if (await unlockAdmin(pass)) { setAdmin(true); setPass(''); toast({ kind: 'success', title: 'Admin tools unlocked' }); } else toast({ kind: 'error', title: 'Wrong passphrase' }); }}>Unlock</button>
+        </div>
+      )}
     </div>
   );
 }

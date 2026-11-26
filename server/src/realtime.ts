@@ -260,8 +260,7 @@ export function createRealtime(http: HttpServer, db: DB, opts: { corsOrigin?: st
     );
     on('game:assist', (p, ack) =>
       withSide(p, ack, (room, side) => {
-        const opp = room.seats[side === 'w' ? 'b' : 'w'];
-        if (opp.kind !== 'bot' || room.status !== 'active') return ack({ ok: false });
+        if (room.status !== 'active') return ack({ ok: false });
         room.hintsUsed[side]++;
         (room.settings as { rated: boolean }).rated = false; // engine-assisted games never count for rating
         ack({ ok: true });
