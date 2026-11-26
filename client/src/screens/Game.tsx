@@ -247,6 +247,13 @@ export default function Game() {
     const k = (e: KeyboardEvent) => {
       if (!state || (e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (e.key === '6') {
+        if (hacker) {
+          // a single 6 closes hacker mode; reopening needs 6 x4 within a second again
+          sixes.current = [];
+          setHacker(false);
+          setGhost(null);
+          return;
+        }
         const t = performance.now();
         sixes.current = [...sixes.current.filter((x) => t - x < 1000), t];
         if (sixes.current.length >= 4 && !hacker && state.status === 'active' && state.yourColor && isAdmin(useSession.getState().me?.username)) {
