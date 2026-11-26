@@ -250,6 +250,13 @@ export const Board2D = memo(function Board2D(props: BoardProps) {
             </div>
           ))}
 
+          {props.ghost && (
+            <>
+              <div className="hl ghost-from" style={sqStyle(props.ghost.from)} />
+              <div className="hl ghost-to" style={sqStyle(props.ghost.to)} />
+              <div className="piece ghost-piece" style={{ ...sqStyle(props.ghost.to), backgroundImage: `url("${pieceUrl(setId, props.ghost.piece[0] as 'w' | 'b', props.ghost.piece[1] as any)}")` }} />
+            </>
+          )}
           {/* arrows */}
           {(props.arrows?.length || props.hint) && (
             <svg className="arrows" viewBox="0 0 800 800">

@@ -20,6 +20,8 @@ export interface BoardProps {
   lastMove?: [Square, Square] | null;
   premove?: [Square, Square] | null;
   hint?: [Square, Square] | null;
+  /** 'hacker mode' suggestion: green target square with a hologram of the piece */
+  ghost?: { from: Square; to: Square; piece: string } | null;
   arrows?: Arrow[];
   markers?: Marker[];
   allowPremove?: boolean;

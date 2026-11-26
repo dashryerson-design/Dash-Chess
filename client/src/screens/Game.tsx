@@ -43,6 +43,9 @@ export default function Game() {
   const [confirmResign, setConfirmResign] = useState(false);
   const [rematchPending, setRematchPending] = useState(false);
   const [markers, setMarkers] = useState<Marker[]>([]);
+  const [hacker, setHacker] = useState(false);
+  const [ghost, setGhost] = useState<{ from: Square; to: Square; piece: string } | null>(null);
+  const sixes = useRef<number[]>([]);
   const lastSoundPly = useRef<number>(-1);
   const prevStatus = useRef<string | null>(null);
   const [boxRef, box] = useElementSize<HTMLDivElement>();
@@ -110,8 +113,29 @@ export default function Game() {
     };
   }, [id, navigate]);
 
+  // hacker mode: best move from the in-browser engine whenever it is our turn
+  useEffect(() => {
+    setGhost(null);
+    if (!hacker || !state || state.status !== 'active' || !state.yourColor || cursor !== null) return;
+    if (state.fen.split(' ')[1] !== state.yourColor) return;
+    let alive = true;
+    const fen = state.fen;
+    void import('../engine/clientEngine').then(({ engine }) =>
+      engine.bestMove(fen, { depth: 15, movetime: 1500 }).then((uci) => {
+        if (!alive || !uci) return;
+        const pc = new Chess(fen).get(uci.slice(0, 2) as Square);
+        if (pc) setGhost({ from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square, piece: pc.color + (uci[4] ?? pc.type) });
+      }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [hacker, state?.fen, state?.status, state?.yourColor, cursor]);
+
   // reset per-game UI state when navigating between games (rematch)
   useEffect(() => {
+    setHacker(false);
+    setGhost(null);
     setRatings(new Map());
     setRewards(null);
     setCursor(null);
@@ -214,6 +238,20 @@ export default function Game() {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!state || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.key === '6') {
+        const t = performance.now();
+        sixes.current = [...sixes.current.filter((x) => t - x < 1000), t];
+        const opp = state.yourColor === 'w' ? state.black : state.white;
+        if (sixes.current.length >= 4 && !hacker && state.status === 'active' && state.yourColor && opp.kind === 'bot') {
+          sixes.current = [];
+          void emit('game:assist', { gameId: id }).then((r) => {
+            if (!r.ok) return;
+            setHacker(true);
+            toast({ kind: 'success', title: 'Hacker mode on', body: 'Best moves shown for this match. It no longer counts for rating or move-quality points.' }, 3000);
+          });
+        }
+        return;
+      }
       const n = state.moves.length;
       if (e.key === 'ArrowLeft') setCursor((c) => Math.max(-1, (c ?? n - 1) - 1));
       else if (e.key === 'ArrowRight') setCursor((c) => (c === null || c + 1 >= n - 1 ? null : c + 1));
@@ -221,7 +259,7 @@ export default function Game() {
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [state]);
+  }, [state, hacker, id]);
 
   // ------------------------------------------------------------------ derived view
   const viewing = cursor !== null && state ? fenAt(state.moves, cursor) : null;
@@ -278,6 +316,7 @@ export default function Game() {
               onPremove={(from, to, promo) => setPremove({ from, to, promo })}
               onPremoveCancel={() => setPremove(null)}
               hint={hint}
+              ghost={ghost}
               markers={markers}
               moveKey={state.moves.length + (optimistic ? 0.5 : 0)}
             />

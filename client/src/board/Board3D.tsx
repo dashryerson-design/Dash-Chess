@@ -128,14 +128,14 @@ export default function Board3D(props: BoardProps) {
       check: logic.checkSquare,
       premove: props.premove ?? null,
       hover,
-      arrows: [...(props.arrows ?? []), ...(props.hint ? [{ from: props.hint[0], to: props.hint[1], color: 'rgba(63, 207, 142, 0.85)' }] : [])],
+      arrows: [...(props.arrows ?? []), ...(props.hint ? [{ from: props.hint[0], to: props.hint[1], color: 'rgba(63, 207, 142, 0.85)' }] : []), ...(props.ghost ? [{ from: props.ghost.from, to: props.ghost.to, color: 'rgba(60, 255, 140, 0.8)' }] : [])],
       colors: { ...colors, legal: colors.legal.replace(/0\.\d+\)$/, '0.45)') },
       legalStyle: gp.legalStyle,
       showLegal: gp.legalMoves,
       checkEffect: gp.checkEffect ? equipped?.checkEffect ?? 'checkEffect.glow' : null,
-      markers: (props.markers ?? []).map((m) => ({ square: m.square, color: m.color })),
+      markers: [...(props.markers ?? []).map((m) => ({ square: m.square, color: m.color })), ...(props.ghost ? [{ square: props.ghost.to, color: 'rgba(40, 255, 120, 0.55)' }] : [])],
     });
-  }, [ready, logic.selected, logic.targets, logic.checkSquare, logic.chess, props.lastMove, props.premove, props.arrows, props.hint, props.markers, hover, gp, equipped?.checkEffect]);
+  }, [ready, logic.selected, logic.targets, logic.checkSquare, logic.chess, props.lastMove, props.premove, props.arrows, props.hint, props.ghost, props.markers, hover, gp, equipped?.checkEffect]);
 
   if (failed) {
     return (
