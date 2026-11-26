@@ -1,10 +1,8 @@
 name: P2P online check (real relays)
 
+# Manual only: it plays a real game whose test players are saved to the live leaderboard.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/pages.yml', 'client/src/local/**', 'scripts/p2p-check.cjs', '.github/workflows/p2p-check.yml']
 
 jobs:
   p2p:
