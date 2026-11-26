@@ -39,11 +39,23 @@ const hash = (s: string) => {
   return h >>> 0;
 };
 
-/** Spread base ratings across divisions: most players mid-table, a few strong ones at the top. */
-export const RIVALS: Rival[] = NAMES.map((name, i) => {
+/**
+ * Realistic spread: a bell curve centred around 1300 (most players 1000-1600), a tail of weaker
+ * players down to ~200, and only a couple of elite players above 2300.
+ */
+const ELITE = new Set(['ImAGM', 'Gothamite']);
+export const RIVALS: Rival[] = NAMES.map((name) => {
   const h = hash(name);
-  const t = (h % 10000) / 10000;
-  const base = Math.round(650 + Math.pow(t, 1.35) * 1850 + (i % 7) * 9);
+  const u = (k: number) => {
+    let x = hash(`${k}:${name}:${k * 7919}`);
+    x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+    x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
+    return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
+  };
+  const z = (u(1) + u(2) + u(3) + u(4) - 2) / 0.577; // ~normal(0, 1)
+  let base = Math.round(1300 + z * (z < 0 ? 380 : 300));
+  if (ELITE.has(name)) base = 2330 + (h % 120);
+  else base = Math.min(2200, Math.max(200, base));
   return { id: `rival_${name.toLowerCase()}`, name, base, icon: ICONS[h % ICONS.length], card: CARDS[(h >> 8) % CARDS.length] };
 });
 
@@ -59,19 +71,19 @@ export function rivalRating(r: Rival, cat?: TimeCategory, d = day()): number {
   let drift = 0;
   for (let k = 0; k < 14; k++) drift += noise(r, 'walk', d - k) * 9;
   const catOffset = cat ? Math.round(noise(r, cat, 0) * 90) : 0;
-  return Math.max(400, Math.round(r.base + drift + catOffset));
+  return Math.max(150, Math.round(r.base + drift + catOffset));
 }
 
 export function rivalProfile(r: Rival, d = day()) {
   const h = hash(r.id);
   // Level follows skill: weak players are low level, the strongest are veterans. A little per-player
   // variation (some grind more than others), plus slow growth over time.
-  const skill = Math.min(1, Math.max(0, (r.base - 600) / 1900));
+  const skill = Math.min(1, Math.max(0, (r.base - 200) / 2250));
   const jitter = ((h >>> 3) % 9) - 3; // -3..+5
   const level = Math.max(2, Math.min(90, Math.round(3 + Math.pow(skill, 1.25) * 72 + jitter + (d % 365) / 120)));
   const games = Math.round(level * level * 0.9 + 15 + (h % 40));
   const ageDays = Math.round(20 + games / (1.5 + (h % 30) / 10));
-  const winRate = 0.42 + Math.min(0.16, (r.base - 650) / 12000);
+  const winRate = 0.42 + Math.max(-0.08, Math.min(0.16, (r.base - 1000) / 9000));
   const wins = Math.round(games * winRate);
   const draws = Math.round(games * 0.07);
   const ratings = Object.fromEntries(
@@ -124,7 +136,7 @@ export function generateRival(rating: number, seed = Math.random()): Rival {
     const h = hash(`${seed}|${k}`);
     const name = STYLE[h % STYLE.length](PREFIX[(h >>> 4) % PREFIX.length], NOUN[(h >>> 10) % NOUN.length], 1 + ((h >>> 16) % 99));
     if (taken.has(name.toLowerCase()) && k < 50) continue;
-    const base = Math.max(400, Math.round(rating));
+    const base = Math.max(150, Math.round(rating));
     const r: Rival = { id: `rival_x${base}_${name}`, name, base, icon: ICONS[h % ICONS.length], card: CARDS[(h >>> 8) % CARDS.length], fixed: true };
     generated.set(r.id, r);
     generated.set(name.toLowerCase(), r);
