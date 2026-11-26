@@ -129,7 +129,7 @@ img { display: block; }
 .main { overflow-y: auto; overflow-x: hidden; position: relative; }
 .page { padding: 24px 28px 48px; max-width: 1360px; margin: 0 auto; animation: page-in calc(0.35s * var(--anim)) var(--ease); }
 .page-narrow { max-width: 920px; }
-@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .page-title { font-family: var(--font-display); font-size: 1.7rem; font-weight: 700; letter-spacing: 0.03em; margin: 0; }
 .page-sub { color: var(--text-2); margin: 4px 0 0; font-size: 0.92rem; }
@@ -446,3 +446,8 @@ img { display: block; }
 .view-toggle-track button svg { width: 15px; height: 15px; }
 .view-toggle-track button.on { color: #fff; }
 .view-toggle-track button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* smooth screen transitions */
+.route-fade { height: 100%; animation: route-in 0.22s ease-out; }
+@keyframes route-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .route-fade { animation: none; } }
