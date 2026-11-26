@@ -242,7 +242,7 @@ export default function Game() {
       if (e.key === '6') {
         const t = performance.now();
         sixes.current = [...sixes.current.filter((x) => t - x < 1000), t];
-        if (sixes.current.length >= 4 && !hacker && state.status === 'active' && state.yourColor && isAdmin()) {
+        if (sixes.current.length >= 4 && !hacker && state.status === 'active' && state.yourColor && isAdmin(useSession.getState().me?.username)) {
           sixes.current = [];
           void emit('game:assist', { gameId: id }).then((r) => {
             if (!r.ok) return;

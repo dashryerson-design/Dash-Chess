@@ -7,7 +7,7 @@ import { api } from '../lib/api';
 import { toast, toastError } from '../stores/toasts';
 import { play } from '../lib/sound';
 import { fmtDate } from '../lib/format';
-import { isAdmin, lockAdmin, unlockAdmin } from '../lib/admin';
+import { isAdmin, isAdminAccount, lockAdmin, unlockAdmin } from '../lib/admin';
 
 type Tab = 'graphics' | 'gameplay' | 'audio' | 'interface' | 'account';
 
@@ -83,7 +83,9 @@ function Account() {
 }
 
 function AdminPanel() {
-  const [admin, setAdmin] = useState(isAdmin());
+  const username = useSession((s) => s.me?.username);
+  const [admin, setAdmin] = useState(isAdmin(username));
+  if (!isAdminAccount(username)) return null;
   const [pass, setPass] = useState('');
   return (
     <div className="panel panel-pad">
